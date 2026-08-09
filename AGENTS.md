@@ -2,27 +2,40 @@
 
 ## Contexte du projet
 - **Auteur** : Jonathan Evina (18, Cameroun) · ORCID 0009-0000-4092-5313 · DOI 10.17605/OSF.IO/6JZMB
-- **Objectif** : Agent scientifique autonome souverain type Manus IA (quantum + topology + bio + crypto + terminal + web + contenu) pour incubateurs/investisseurs
-- **Dépôt** : `ratiss-aeon-agent` (GitHub: evinajonathan13-max), branche `ratiss-aeon-agent` (PR #2 sur ratiss-kkl)
+- **Objectif** : Agent scientifique autonome souverain type Manus IA / OpenManus (quantum + topology + bio + crypto + browser + terminal + python + web + contenu) pour incubateurs/investisseurs
+- **Dépôt** : `ratiss-aeon-agent` (GitHub: evinajonathan13-max), branche `main`
 - **Source** : extension de `ratiss-kkl` (PR #1 merged)
-- **Version** : 9.0.0 (kernel ratiss_v9_aeon_prime)
+- **Version** : 9.1.0 (kernel ratiss_v9_aeon_prime) — Manus IA tools ajoutés
 
-## Architecture (18 skills)
+## Architecture (23 skills)
 - `kernel/` — Noyau scientifique RATISS V9 (main.py, bridge.py, solvers/, connectors/, core/, system/, zk/)
-- `orchestrator/` — Agent agentique (agent.py, nemotron_client.py, skill_manager.py, cascade.py)
-- `tools/` — **NOUVEAU** Manus AI tools :
+- `orchestrator/` — Agent agentique avec **boucle ReAct** (agent.py, nemotron_client.py, skill_manager.py, cascade.py)
+- `tools/` — Manus IA tools :
   - `terminal_executor.py` — Shell sécurisé (allowlist, streaming, blocage rm -rf /)
   - `web_client.py` — arXiv, PubMed, ChEMBL, PDB, AlphaFold, fetch URL
   - `content_generator.py` — PDF (fpdf2), charts (matplotlib), pages HTML
-- `app/` — FastAPI + WebSocket + UI 4-panneaux (server.py, static/index.html|style.css|app.js)
+  - `browser_tool.py` — **NOUVEAU** Browser Playwright (navigate, click, type, extract, screenshot, scroll, state, back) via subprocess one-shot
+  - `python_executor.py` — **NOUVEAU** Exécution Python sandbox (numpy, scipy, matplotlib, timeout 30s)
+  - `web_search.py` — **NOUVEAU** Recherche web générale (Tavily API + DuckDuckGo fallback)
+  - `file_editor.py` — **NOUVEAU** Éditeur de fichiers (view, create, str_replace, insert, undo, list)
+  - `file_saver.py` — **NOUVEAU** Sauvegarder du contenu arbitraire
+- `app/` — FastAPI + WebSocket + UI 5-panneaux (server.py, static/index.html|style.css|app.js)
 - `security/` — Sessions, PBKDF2, isolation workspace, NemoSandbox
 - `screenshots/` — 4 captures d'écran (dashboard, arXiv+PDF, preview, terminal)
 
-## 18 compétences
+## 23 compétences
 - **6 scientifiques** : load_pdb, topology, quantum_ed, zk_proof, full_pipeline, tryperposition
 - **2 terminal** : terminal, git_clone
-- **6 web** : web_fetch, web_arxiv, web_pubmed, web_chembl, web_pdb, web_alphafold
+- **6 web scientifique** : web_fetch, web_arxiv, web_pubmed, web_chembl, web_pdb, web_alphafold
 - **4 contenu** : generate_pdf, generate_chart, generate_webpage, generate_betti_diagram
+- **5 Manus IA (NOUVEAU v9.1)** : browser, python_execute, google_search, file_editor, file_saver
+
+## Boucle ReAct (v9.1)
+L'agent utilise désormais une boucle **Think → Act → Observe** au lieu de plan-then-execute :
+- Think : l'agent réfléchit à chaque étape
+- Act : exécute l'action (terminal, python, browser, scientifique...)
+- Observe : analyse le résultat et adapte
+- Détection de blocage : si la même action est répétée 3 fois, arrêt automatique
 
 ## Commandes utiles
 ```bash

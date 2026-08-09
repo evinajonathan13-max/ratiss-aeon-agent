@@ -64,7 +64,7 @@
     </div>
   </section>
 
-  <!-- Colonne droite : Terminal + Télémétrie + Preview -->
+  <!-- Colonne droite : Terminal + Browser/Python + Télémétrie + Preview -->
   <section class="right-column">
     <!-- Terminal intégré -->
     <section class="panel terminal-panel">
@@ -76,6 +76,45 @@
       <div class="terminal-input-area">
         <span class="prompt">$</span>
         <input type="text" id="terminal-input" placeholder="git, pip, python, curl, ls..." autocomplete="off">
+      </div>
+    </section>
+
+    <!-- Browser + Python (Manus IA tools) -->
+    <section class="panel manus-panel">
+      <div class="panel-header">
+        <h2>Browser &amp; Code</h2>
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="browser" id="tab-browser">🌐 Browser</button>
+          <button class="tab-btn" data-tab="python" id="tab-python">🐍 Python</button>
+          <button class="tab-btn" data-tab="search" id="tab-search">🔍 Search</button>
+        </div>
+      </div>
+      <div class="tab-content" id="tab-content-browser">
+        <div class="browser-controls">
+          <input type="text" id="browser-url" placeholder="https://arxiv.org" autocomplete="off">
+          <button id="browser-go" title="Naviguer">→</button>
+          <button id="browser-screenshot" title="Screenshot">📷</button>
+          <button id="browser-state" title="État">⚙</button>
+        </div>
+        <div class="browser-output" id="browser-output">
+          <div class="empty-state small">Entrez une URL et cliquez → pour naviguer</div>
+        </div>
+      </div>
+      <div class="tab-content hidden" id="tab-content-python">
+        <textarea id="python-code" placeholder="import numpy as np&#10;x = np.array([1,2,3,4,5])&#10;print(np.mean(x))&#10;x.sum()" rows="5"></textarea>
+        <button id="python-run" class="run-btn">▶ Exécuter</button>
+        <div class="python-output" id="python-output">
+          <div class="empty-state small">Le code s'exécute dans un sandbox Python</div>
+        </div>
+      </div>
+      <div class="tab-content hidden" id="tab-content-search">
+        <div class="search-controls">
+          <input type="text" id="search-query" placeholder="Lanczos algorithm quantum..." autocomplete="off">
+          <button id="search-btn">🔍</button>
+        </div>
+        <div class="search-output" id="search-output">
+          <div class="empty-state small">Recherche web (Tavily/DuckDuckGo)</div>
+        </div>
       </div>
     </section>
 

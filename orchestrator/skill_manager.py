@@ -148,6 +148,48 @@ def _generate_betti_diagram(params: dict[str, Any], ctx: dict[str, Any] | None =
     return generate_betti_diagram(diagrams, output_dir=workspace)
 
 
+# ── Outils Manus IA (browser, python, search, files) ──────────────────────────
+
+
+def _browser(params: dict[str, Any], ctx: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Browser automation (Playwright)."""
+    from tools.browser_tool import execute_browser_action
+
+    workspace = str(ctx.get("workspace_dir")) if ctx else None
+    action = params.get("action", "navigate")
+    return execute_browser_action(action, params, workspace_dir=workspace)
+
+
+def _python_execute(params: dict[str, Any], ctx: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Exécution Python sandbox."""
+    from tools.python_executor import PythonExecutor
+
+    workspace = str(ctx.get("workspace_dir")) if ctx else None
+    pe = PythonExecutor(timeout=params.get("timeout", 30), workspace_dir=workspace)
+    return pe.execute(params.get("code", "print('RATISS Python sandbox ready')"))
+
+
+def _google_search(params: dict[str, Any]) -> dict[str, Any]:
+    """Recherche web générale (Tavily/DuckDuckGo)."""
+    from tools.web_search import google_search
+    return google_search(params.get("query", ""), max_results=params.get("max_results", 5))
+
+
+def _file_editor(params: dict[str, Any], ctx: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Éditeur de fichiers (view/create/str_replace/insert/undo)."""
+    from tools.file_editor import execute_file_action
+    workspace = str(ctx.get("workspace_dir")) if ctx else None
+    action = params.get("action", "view")
+    return execute_file_action(action, params, workspace_dir=workspace)
+
+
+def _file_saver(params: dict[str, Any], ctx: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Sauvegarde de fichier."""
+    from tools.file_saver import execute_save
+    workspace = str(ctx.get("workspace_dir")) if ctx else None
+    return execute_save(params, workspace_dir=workspace)
+
+
 SKILLS: dict[str, dict[str, Any]] = {
     # Noyau scientifique
     "load_pdb": {"label": "Chargement structure PDB", "fn": _load_pdb, "category": "biology"},
@@ -171,6 +213,12 @@ SKILLS: dict[str, dict[str, Any]] = {
     "generate_chart": {"label": "Générer un graphique", "fn": _generate_chart, "category": "content"},
     "generate_webpage": {"label": "Générer une page web", "fn": _generate_webpage, "category": "content"},
     "generate_betti_diagram": {"label": "Diagramme de persistance", "fn": _generate_betti_diagram, "category": "content"},
+    # Manus IA — browser, python, search, files
+    "browser": {"label": "Navigation web (Playwright)", "fn": _browser, "category": "browser"},
+    "python_execute": {"label": "Exécution Python sandbox", "fn": _python_execute, "category": "code"},
+    "google_search": {"label": "Recherche web générale", "fn": _google_search, "category": "web"},
+    "file_editor": {"label": "Éditeur de fichiers", "fn": _file_editor, "category": "files"},
+    "file_saver": {"label": "Sauvegarder un fichier", "fn": _file_saver, "category": "files"},
 }
 
 
@@ -182,7 +230,11 @@ def execute_step(action: str, params: dict[str, Any], ctx: dict[str, Any] | None
     fn: Callable = skill["fn"]
     try:
         # Actions nécessitant le contexte (workspace, last_result)
-        if action in ("zk_proof", "terminal", "git_clone", "generate_pdf", "generate_chart", "generate_webpage", "generate_betti_diagram"):
+        if action in (
+            "zk_proof", "terminal", "git_clone",
+            "generate_pdf", "generate_chart", "generate_webpage", "generate_betti_diagram",
+            "browser", "python_execute", "file_editor", "file_saver",
+        ):
             return fn(params, ctx)
         return fn(params)
     except Exception as e:

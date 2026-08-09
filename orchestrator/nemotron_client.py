@@ -164,6 +164,57 @@ class NemotronClient:
                 cmd = "pip --version"
             steps.append({"id": sid, "action": "terminal", "params": {"command": cmd}, "description": f"Terminal: {cmd}"})
 
+        # Manus IA — Browser (navigation web interactive)
+        if any(k in t for k in ["navigate", "ouvre le site", "ouvrir le site", "visite", "browser", "naviguer", "site web", "clique sur", "scrolle"]):
+            sid = len(steps) + 1
+            # Extraire l'URL si présente
+            import re as _re
+            url_match = _re.search(r'https?://[^\s]+', task)
+            url = url_match.group(0) if url_match else "https://arxiv.org"
+            if "screenshot" in t or "capture" in t:
+                steps.append({"id": sid, "action": "browser", "params": {"action": "navigate", "url": url}, "description": f"Browser: naviguer vers {url}"})
+                sid2 = sid + 1
+                steps.append({"id": sid2, "action": "browser", "params": {"action": "screenshot"}, "description": "Browser: screenshot"})
+            else:
+                steps.append({"id": sid, "action": "browser", "params": {"action": "navigate", "url": url}, "description": f"Browser: naviguer vers {url}"})
+
+        # Manus IA — Python execution (si l'utilisateur demande du code)
+        if any(k in t for k in ["python", "exécute le code", "execute code", "calcule", "script", "fonction", "numpy", "scipy", "matplotlib", "code python"]):
+            sid = len(steps) + 1
+            code = "import numpy as np\nx = np.linspace(0, 10, 100)\nprint('mean:', np.mean(x))\nprint('std:', np.std(x))"
+            # Si la tâche contient des mots-clés mathématiques
+            if "fibonacci" in t:
+                code = "def fib(n):\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a+b\n    return a\nprint([fib(i) for i in range(10)])"
+            elif "factorielle" in t or "factorial" in t:
+                code = "import math\nprint('5! =', math.factorial(5))"
+            elif "matrice" in t or "matrix" in t:
+                code = "import numpy as np\nA = np.array([[1,2],[3,4]])\nprint('det:', np.linalg.det(A))\nprint('eig:', np.linalg.eigvals(A))"
+            steps.append({"id": sid, "action": "python_execute", "params": {"code": code}, "description": "Python: exécuter du code"})
+
+        # Manus IA — Google search (recherche web générale)
+        if any(k in t for k in ["google", "recherche web", "search", "cherche sur le web", "trouve sur internet"]):
+            if not any(k in t for k in ["arxiv", "pubmed", "chembl"]):  # ne pas dupliquer avec web scientifique
+                sid = len(steps) + 1
+                # Extraire la requête
+                query = task
+                for prefix in ["recherche web", "google", "search", "cherche sur le web", "trouve sur internet"]:
+                    if prefix in t:
+                        query = task.lower().split(prefix)[-1].strip(" :").strip()
+                        break
+                if not query or len(query) < 3:
+                    query = "quantum physics"
+                steps.append({"id": sid, "action": "google_search", "params": {"query": query[:100]}, "description": f"Recherche web: {query[:50]}"})
+
+        # Manus IA — File editor (créer/éditer un fichier)
+        if any(k in t for k in ["crée le fichier", "create file", "édite le fichier", "edit file", "modifie le fichier", "str replace", "file editor"]):
+            sid = len(steps) + 1
+            steps.append({"id": sid, "action": "file_editor", "params": {"action": "create", "path": "output.txt", "content": "# Fichier créé par RATISS Aeon Agent"}, "description": "File editor: créer un fichier"})
+
+        # Manus IA — File saver (sauvegarder du contenu)
+        if any(k in t for k in ["sauvegarde", "save", "enregistre le fichier", "écris dans un fichier"]):
+            sid = len(steps) + 1
+            steps.append({"id": sid, "action": "file_saver", "params": {"filename": "output.txt", "content": "Contenu sauvegardé par RATISS"}, "description": "Sauvegarder un fichier"})
+
         if any(k in t for k in ["tryperposition", "pipeline complet", "unifié", "unified", "tout"]):
             steps = [{"id": 1, "action": "tryperposition", "params": {}, "description": "Pipeline unifié Q ⊗ I ⊗ M"}]
             artifacts = ["result.json", "zk_receipt.b64", "betti_diagram.json", "quantum_result.json"]

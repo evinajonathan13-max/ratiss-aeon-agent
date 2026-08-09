@@ -1,6 +1,6 @@
 # RATISS Aeon Agent
 
-**Agent scientifique autonome souverain** — type Manus IA, combinant physique quantique (Lanczos ED), topologie computationnelle, biologie structurale, cryptographie (ZK-STARK), **terminal intégré**, **accès web scientifique** et **génération de contenu** (PDF, graphiques, pages web).
+**Agent scientifique autonome souverain** — type Manus IA / OpenManus, combinant physique quantique (Lanczos ED), topologie computationnelle, biologie structurale, cryptographie (ZK-STARK), **browser web (Playwright)**, **terminal intégré**, **exécution Python sandbox**, **recherche web générale**, **éditeur de fichiers** et **génération de contenu** (PDF, graphiques, pages web).
 
 > Auteur : **Jonathan Evina** · ORCID [0009-0000-4092-5313](https://orcid.org/0009-0000-4092-5313) · DOI [10.17605/OSF.IO/6JZMB](https://doi.org/10.17605/OSF.IO/6JZMB)
 
@@ -21,11 +21,24 @@
 RATISS (Real-time Adaptive Topological & Integrative Scientific System) Aeon Prime est un agent scientifique autonome qui :
 
 1. **Planifie** une tâche en langage naturel (Nemotron 3 Ultra via OpenRouter, ou planificateur local déterministe en fallback)
-2. **Exécute** chaque étape via le noyau scientifique (Lanczos ED, GUDHI, PDB, ZK-STARK)
+2. **Exécute** chaque étape via la **boucle ReAct** (Think → Act → Observe) avec détection de blocage
 3. **Certifie** les résultats avec une preuve ZK-STARK RISC Zero (vérifiée en < 1 ms)
-4. **Génère** des artéfacts téléchargeables (JSON, reçus ZK, diagrammes)
+4. **Génère** des artéfacts téléchargeables (JSON, reçus ZK, diagrammes, PDF, screenshots)
 
 Le tout dans un Memory Guard strict (7500 Mo, CPU-only), 100 % souverain : aucune donnée ne quitte la machine sans clé API explicite.
+
+## Nouveautés — Manus IA tools (v9.1)
+
+RATISS intègre désormais les mêmes capacités qu'OpenManus/Manus IA :
+
+| Outil | Équivalent OpenManus | Description |
+|-------|---------------------|-------------|
+| **Browser** (Playwright) | `BrowserUseTool` | Naviguer, cliquer, taper, extraire, screenshot, scroller |
+| **PythonExecute** | `PythonExecute` | Exécuter du code Python dans un sandbox (numpy, scipy, matplotlib) |
+| **GoogleSearch** | `GoogleSearch` | Recherche web générale (Tavily API + DuckDuckGo fallback) |
+| **FileEditor** | `StrReplaceEditor` | Voir, créer, éditer des fichiers (str_replace, insert, undo) |
+| **FileSaver** | `FileSaver` | Sauvegarder du contenu arbitraire dans le workspace |
+| **ReAct loop** | `ReActAgent` | Boucle Think → Act → Observe avec détection de blocage |
 
 ## Architecture
 
@@ -85,6 +98,10 @@ Exemples de tâches :
 - `Recherche PubMed sur p53 MDM2`
 - `Recherche ChEMBL pour l'aspirine`
 - `Exécute git --version dans le terminal`
+- `Navigue vers https://arxiv.org et prends un screenshot`
+- `Calcule la matrice en python (det + eigenvalues)`
+- `Recherche web sur Lanczos algorithm quantum`
+- `Crée le fichier analyse.py avec un script numpy`
 - `Pipeline complet quantique + topologie + certification`
 - `Tryperposition unifiée Q ⊗ I ⊗ M`
 
@@ -96,14 +113,18 @@ Exemples de tâches :
 | `/api/memory` | GET | État du Memory Guard |
 | `/api/connectors` | GET | Statut des connecteurs API |
 | `/api/pdb` | GET | Structures PDB locales |
-| `/api/skills` | GET | 18 compétences disponibles |
-| `/api/run?task=...` | POST | Exécution synchrone |
+| `/api/skills` | GET | 23 compétences disponibles |
+| `/api/run?task=...` | POST | Exécution synchrone (ReAct) |
 | `/api/terminal?command=...` | POST | Exécution directe terminal |
+| `/api/browser` | POST | Browser automation (navigate, click, screenshot...) |
+| `/api/python` | POST | Exécution Python sandbox |
+| `/api/search` | POST | Recherche web (Tavily/DuckDuckGo) |
+| `/api/file` | POST | Éditeur de fichiers (view, create, str_replace) |
 | `/api/preview/{filename}` | GET | Sert un artéfact (PDF, PNG, HTML) |
 | `/api/artifacts/{session}` | GET | Liste des artéfacts |
-| `/ws` | WebSocket | Canal multiplexé temps réel (chat + terminal) |
+| `/ws` | WebSocket | Canal multiplexé temps réel (chat + terminal + browser + python) |
 
-## Compétences du noyau (18 actions)
+## Compétences (23 actions)
 
 ### Scientifiques (6)
 | Action | Description | Catégorie |
@@ -141,6 +162,15 @@ Sécurité : allowlist stricte, détection de patterns dangereux (rm -rf /, sudo
 | `generate_chart` | Graphique PNG (bar, line, scatter, pie — matplotlib) | Contenu |
 | `generate_webpage` | Page HTML previewable (style intégré) | Contenu |
 | `generate_betti_diagram` | Diagramme de persistance (topologie) | Contenu |
+
+### Manus IA tools (5) — nouveaux en v9.1
+| Action | Description | Catégorie |
+|--------|-------------|-----------|
+| `browser` | Navigation web Playwright (navigate, click, type, extract, screenshot, scroll, state, back) | Browser |
+| `python_execute` | Exécution Python sandbox (numpy, scipy, matplotlib, timeout 30s) | Code |
+| `google_search` | Recherche web générale (Tavily API + DuckDuckGo fallback) | Web |
+| `file_editor` | Éditeur de fichiers (view, create, str_replace, insert, undo, list) | Files |
+| `file_saver` | Sauvegarder du contenu arbitraire dans le workspace | Files |
 
 Tous les artéfacts sont previewables directement dans l'UI (iframe pour HTML, embed pour PDF, img pour PNG/SVG).
 

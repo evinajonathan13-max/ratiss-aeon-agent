@@ -484,6 +484,146 @@
   }
 
   // ── Init ─────────────────────────────────────────────────────
+  // ── Browser, Python, Search (Manus IA tools) ────────────────────
+
+  function switchTab(tabName) {
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.tab === tabName);
+    });
+    document.querySelectorAll(".tab-content").forEach((content) => {
+      content.classList.toggle("hidden", content.id !== `tab-content-${tabName}`);
+    });
+  }
+
+  async function browserNavigate() {
+    const url = $("browser-url").value.trim();
+    if (!url) return;
+    const output = $("browser-output");
+    output.innerHTML = '<div class="empty-state small">⏳ Navigation en cours...</div>';
+    try {
+      const resp = await fetch("/api/browser", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "navigate", url: url }),
+      });
+      const data = await resp.json();
+      output.innerHTML = `
+        <div style="color: var(--accent); font-weight: bold;">${data.title || "Sans titre"}</div>
+        <div style="color: var(--text-dim); font-size: 10px; margin: 4px 0;">${data.url || ""} (HTTP ${data.status || "?"})</div>
+        <div style="color: var(--text); margin-top: 6px; white-space: pre-wrap;">${(data.text || "").substring(0, 1000)}</div>
+        <div style="color: var(--text-dim); font-size: 10px; margin-top: 6px;">${(data.links || []).length} liens trouvés</div>
+      `;
+    } catch (e) {
+      output.innerHTML = `<div style="color: #e74c3c;">Erreur: ${e.message}</div>`;
+    }
+  }
+
+  async function browserScreenshot() {
+    const output = $("browser-output");
+    output.innerHTML = '<div class="empty-state small">⏳ Screenshot en cours...</div>';
+    try {
+      const resp = await fetch("/api/browser", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "screenshot", url: $("browser-url").value.trim() || "https://example.com" }),
+      });
+      const data = await resp.json();
+      if (data.status === "SCREENSHOT_TAKEN") {
+        output.innerHTML = `
+          <div style="color: var(--accent);">📷 ${data.filename}</div>
+          <div style="color: var(--text-dim); font-size: 10px;">${data.size_bytes} bytes</div>
+          <img src="/api/preview/${data.filename}" style="max-width: 100%; margin-top: 8px; border-radius: 6px;" />
+        `;
+      } else {
+        output.innerHTML = `<div style="color: #e74c3c;">${data.error || "Erreur"}</div>`;
+      }
+    } catch (e) {
+      output.innerHTML = `<div style="color: #e74c3c;">Erreur: ${e.message}</div>`;
+    }
+  }
+
+  async function browserState() {
+    const output = $("browser-output");
+    output.innerHTML = '<div class="empty-state small">⏳ Récupération de l\'état...</div>';
+    try {
+      // Naviguer d'abord si URL présente
+      const url = $("browser-url").value.trim();
+      if (url) {
+        await fetch("/api/browser", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "navigate", url: url }),
+        });
+      }
+      const resp = await fetch("/api/browser", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "state" }),
+      });
+      const data = await resp.json();
+      const elements = data.interactive_elements || [];
+      output.innerHTML = `
+        <div style="color: var(--accent);">${data.title || "Sans titre"}</div>
+        <div style="color: var(--text-dim); font-size: 10px;">${data.url || ""}</div>
+        <div style="color: var(--text); margin-top: 6px;">${elements.length} éléments interactifs:</div>
+        ${elements.slice(0, 10).map((el) => `<div style="font-size: 10px; color: var(--text-dim); padding: 2px 0;">[${el.index}] &lt;${el.tag}&gt; ${el.text.substring(0, 40)}</div>`).join("")}
+      `;
+    } catch (e) {
+      output.innerHTML = `<div style="color: #e74c3c;">Erreur: ${e.message}</div>`;
+    }
+  }
+
+  async function pythonRun() {
+    const code = $("python-code").value.trim();
+    if (!code) return;
+    const output = $("python-output");
+    output.innerHTML = '<div class="empty-state small">⏳ Exécution en cours...</div>';
+    try {
+      const resp = await fetch("/api/python", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code, timeout: 30 }),
+      });
+      const data = await resp.json();
+      output.innerHTML = `
+        <div style="color: ${data.status === "SUCCESS" ? "var(--accent)" : "#e74c3c"};">${data.status}</div>
+        ${data.stdout ? `<div style="color: var(--text); white-space: pre-wrap; margin-top: 4px;">${data.stdout}</div>` : ""}
+        ${data.result ? `<div style="color: var(--text-dim); margin-top: 4px;">→ ${data.result}</div>` : ""}
+        ${data.error ? `<div style="color: #e74c3c; white-space: pre-wrap; margin-top: 4px;">${data.error.substring(0, 500)}</div>` : ""}
+      `;
+    } catch (e) {
+      output.innerHTML = `<div style="color: #e74c3c;">Erreur: ${e.message}</div>`;
+    }
+  }
+
+  async function webSearch() {
+    const query = $("search-query").value.trim();
+    if (!query) return;
+    const output = $("search-output");
+    output.innerHTML = '<div class="empty-state small">⏳ Recherche en cours...</div>';
+    try {
+      const resp = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: query, max_results: 5 }),
+      });
+      const data = await resp.json();
+      const results = data.results || [];
+      output.innerHTML = `
+        <div style="color: var(--accent); margin-bottom: 6px;">${data.engine || "?"}: ${data.count || 0} résultats</div>
+        ${results.map((r) => `
+          <div class="search-result">
+            <div class="search-result-title" onclick="window.open('${r.url}', '_blank')">${r.title}</div>
+            <div class="search-result-url">${r.url}</div>
+            <div class="search-result-snippet">${r.snippet}</div>
+          </div>
+        `).join("")}
+      `;
+    } catch (e) {
+      output.innerHTML = `<div style="color: #e74c3c;">Erreur: ${e.message}</div>`;
+    }
+  }
+
   function init() {
     connect();
     $("send-btn").addEventListener("click", sendTask);
@@ -499,6 +639,21 @@
         e.preventDefault();
         sendTerminalCommand();
       }
+    });
+    // Browser/Python/Search tabs
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+    });
+    $("browser-go").addEventListener("click", browserNavigate);
+    $("browser-screenshot").addEventListener("click", browserScreenshot);
+    $("browser-state").addEventListener("click", browserState);
+    $("browser-url").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") browserNavigate();
+    });
+    $("python-run").addEventListener("click", pythonRun);
+    $("search-btn").addEventListener("click", webSearch);
+    $("search-query").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") webSearch();
     });
     // Ping périodique
     setInterval(() => {

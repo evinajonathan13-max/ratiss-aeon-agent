@@ -87,18 +87,35 @@ class RatissAgent:
         connectors = get_connectors_status()
         self.cascade.connectors(connectors)
 
-        # 3. EXECUTE — chaque étape
-        self.cascade.status("executing", f"Exécution de {len(plan.get('steps', []))} étapes")
+        # 3. EXECUTE — boucle ReAct (Think → Act → Observe)
+        self.cascade.status("executing", f"Exécution ReAct de {len(plan.get('steps', []))} étapes")
         results: list[dict[str, Any]] = []
-        for step in plan.get("steps", []):
-            sid = step.get("id", 0)
+        steps_queue = list(plan.get("steps", []))
+        step_counter = 0
+        recent_actions: list[str] = []  # pour détection de blocage
+
+        while steps_queue:
+            step = steps_queue.pop(0)
+            sid = step.get("id", step_counter + 1)
             action = step.get("action", "unknown")
             params = step.get("params", {})
+            step_counter += 1
+
+            # THINK — l'agent réfléchit à ce qu'il va faire
             self.cascade.step_start(step)
-            self.cascade.log(f"Étape {sid}: {step.get('description', action)}", stream="ratiss")
+            self.cascade.log(f"[Think] Étape {sid}: {step.get('description', action)}", stream="ratiss")
             self._emit_telemetry()
+
+            # Détection de blocage : si la même action est répétée 3 fois
+            recent_actions.append(action)
+            if len(recent_actions) >= 3 and recent_actions[-1] == recent_actions[-2] == recent_actions[-3]:
+                self.cascade.log(f"[Stuck] Blocage détecté: '{action}' répétée 3x. Arrêt.", stream="ratiss")
+                self.cascade.step_error(sid, "Stuck detection: repeated action 3 times")
+                results.append({"step_id": sid, "action": action, "error": "stuck_detection"})
+                break
+
+            # ACT — exécution de l'action
             try:
-                # Pour le terminal, streaming de sortie temps réel
                 if action == "terminal":
                     from tools.terminal_executor import TerminalExecutor
                     workspace = self.ctx.get("workspace")
@@ -110,32 +127,58 @@ class RatissAgent:
                         self.cascade.log(line, stream=f"terminal_{stream_name}")
 
                     result = te.execute(params.get("command", ""), on_output=_on_term_output, timeout=params.get("timeout", 30))
+                elif action == "python_execute":
+                    from tools.python_executor import PythonExecutor
+                    workspace = str(self.ctx.get("workspace_dir"))
+                    pe = PythonExecutor(timeout=params.get("timeout", 30), workspace_dir=workspace)
+
+                    def _on_py_output(stream_name: str, line: str) -> None:
+                        self.cascade.log(line, stream=f"python_{stream_name}")
+
+                    result = pe.execute(params.get("code", ""), on_output=_on_py_output)
+                    self.cascade.log(f"[Python] {result.get('status', 'UNKNOWN')}", stream="python")
+                elif action == "browser":
+                    from tools.browser_tool import execute_browser_action
+                    workspace = str(self.ctx.get("workspace_dir"))
+                    browser_action = params.get("action", "navigate")
+
+                    def _on_browser_log(msg: str) -> None:
+                        self.cascade.log(f"[Browser] {msg}", stream="browser")
+
+                    result = execute_browser_action(browser_action, params, workspace_dir=workspace, on_log=_on_browser_log)
+                    self.cascade.log(f"[Browser] {result.get('status', 'UNKNOWN')}", stream="browser")
                 else:
                     result = execute_step(action, params, self.ctx)
+
+                # OBSERVE — analyser le résultat
                 self.cascade.step_done(sid, result)
                 results.append({"step_id": sid, "action": action, "result": result})
+                self.cascade.log(f"[Observe] {action} → {result.get('status', 'OK')}", stream="ratiss")
+
                 # Garder le dernier résultat pour la certification ZK
                 if action in ("quantum_ed", "topology", "full_pipeline", "tryperposition"):
-                    # Adapter la structure pour le prover ZK
                     zk_input = dict(result)
                     if action == "topology" and "tj_model" not in zk_input:
                         zk_input["tj_model"] = {"ground_state_energy": -3.4215, "psi_norm": 0.9984}
                     if action == "quantum_ed":
-                        # quantum_ed retourne déjà tj_model au bon endroit
                         zk_input.setdefault("tj_model", {
                             "ground_state_energy": result.get("ground_state_energy", -3.4215),
                             "psi_norm": result.get("psi_norm", 0.9984),
                         })
                     self.ctx["last_result"] = zk_input
-                    # Sauvegarder l'artefact
                     self._save_artifact(f"step_{sid}_{action}.json", result)
+
+                # ReAct ADAPT : si l'action a échoué
+                if result.get("status", "").endswith("_FAILED"):
+                    self.cascade.log(f"[Adapt] Échec sur '{action}', continuation...", stream="ratiss")
+
                 self._emit_telemetry()
             except Exception as e:
                 logger.exception(f"[AGENT] Erreur étape {sid}")
                 self.cascade.step_error(sid, str(e))
                 results.append({"step_id": sid, "action": action, "error": str(e)})
 
-        # 4. CERTIFY — si une preuve ZK n'a pas déjà été générée
+# 4. CERTIFY — si une preuve ZK n'a pas déjà été générée
         has_zk = any(r.get("action") == "zk_proof" for r in results)
         if not has_zk and self.ctx.get("last_result"):
             self.cascade.status("certifying", "Certification ZK-STARK")

@@ -139,6 +139,62 @@ async def terminal_exec(command: str = "", cwd: str = ""):
     return r
 
 
+@app.post("/api/browser")
+async def browser_exec(body: dict = None):
+    """Browser automation direct (sans WebSocket)."""
+    from tools.browser_tool import execute_browser_action
+    body = body or {}
+    action = body.get("action", "navigate")
+    params = {}
+    for k in ("url", "selector", "text", "full_page"):
+        if body.get(k) is not None:
+            params[k] = body[k]
+    r = execute_browser_action(action, params, workspace_dir=str(_ROOT / "workspace"))
+    return r
+
+
+@app.post("/api/python")
+async def python_exec(body: dict = None):
+    """Exécution Python sandbox direct (sans WebSocket)."""
+    from tools.python_executor import PythonExecutor
+    body = body or {}
+    code = body.get("code", "")
+    timeout = body.get("timeout", 30)
+    pe = PythonExecutor(timeout=timeout, workspace_dir=str(_ROOT / "workspace"))
+    r = pe.execute(code)
+    return r
+
+
+@app.post("/api/search")
+async def web_search(body: dict = None):
+    """Recherche web générale (sans WebSocket)."""
+    from tools.web_search import google_search
+    body = body or {}
+    query = body.get("query", "")
+    max_results = body.get("max_results", 5)
+    r = google_search(query, max_results=max_results)
+    return r
+
+
+@app.post("/api/file")
+async def file_action(body: dict = None):
+    """File editor direct (sans WebSocket)."""
+    from tools.file_editor import execute_file_action
+    body = body or {}
+    action = body.get("action", "view")
+    params = {"action": action, "path": body.get("path", body.get("filename", ""))}
+    if body.get("content"):
+        params["content"] = body["content"]
+    if body.get("text"):
+        params["text"] = body["text"]
+    if body.get("old_str"):
+        params["old_str"] = body["old_str"]
+    if body.get("new_str"):
+        params["new_str"] = body["new_str"]
+    r = execute_file_action(action, params, workspace_dir=str(_ROOT / "workspace"))
+    return r
+
+
 @app.get("/api/preview/{filename:path}")
 async def preview_artifact(filename: str):
     """Sert un artéfact pour preview dans l'UI (PDF, PNG, HTML, SVG)."""
@@ -213,6 +269,36 @@ async def websocket_endpoint(ws: WebSocket):
                     await ws.send_json({"type": "terminal_done", "result": result})
                 except Exception as e:
                     await ws.send_json({"type": "terminal_error", "error": str(e)})
+            elif msg_type == "browser":
+                # Browser automation via WebSocket
+                from tools.browser_tool import execute_browser_action
+                action = msg.get("action", "navigate")
+                params = msg.get("params", {})
+                await ws.send_json({"type": "browser_start", "action": action})
+
+                def _on_browser_log(log_msg: str) -> None:
+                    emitter({"type": "browser_log", "message": log_msg})
+
+                try:
+                    result = await asyncio.to_thread(execute_browser_action, action, params, str(_ROOT / "workspace"), _on_browser_log)
+                    await ws.send_json({"type": "browser_done", "result": result})
+                except Exception as e:
+                    await ws.send_json({"type": "browser_error", "error": str(e)})
+            elif msg_type == "python":
+                # Python execution via WebSocket
+                from tools.python_executor import PythonExecutor
+                code = msg.get("code", "")
+                await ws.send_json({"type": "python_start", "code_length": len(code)})
+
+                def _on_py_output(stream_name: str, line: str) -> None:
+                    emitter({"type": "python_output", "stream": stream_name, "line": line})
+
+                pe = PythonExecutor(timeout=msg.get("timeout", 30), workspace_dir=str(_ROOT / "workspace"))
+                try:
+                    result = await asyncio.to_thread(pe.execute, code, _on_py_output)
+                    await ws.send_json({"type": "python_done", "result": result})
+                except Exception as e:
+                    await ws.send_json({"type": "python_error", "error": str(e)})
             elif msg_type == "ping":
                 await ws.send_json({"type": "pong"})
             elif msg_type == "telemetry":
