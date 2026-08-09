@@ -140,6 +140,21 @@
       case "status":
         $("cascade-status").textContent = msg.status + (msg.detail ? " · " + msg.detail : "");
         break;
+      case "refine_start":
+        addChatMessage("assistant", "🔧 Auto-amélioration : analyse de la trajectoire en cours...");
+        break;
+      case "refine_proposal":
+        renderRefineProposal(msg.report);
+        break;
+      case "refine_applied":
+        renderRefineApplied(msg.result);
+        break;
+      case "refine_done":
+        handleRefineDone(msg.report);
+        break;
+      case "harness_state":
+        renderHarnessState(msg.state, msg.trajectories);
+        break;
       case "done":
         handleDone(msg.summary);
         break;
@@ -163,6 +178,15 @@
     const input = $("chat-input");
     const task = input.value.trim();
     if (!task || state.running) return;
+    // Commandes slash (/refine, /harness) — gérées par le serveur mais affichées ici
+    if (task.startsWith("/refine") || task.startsWith("/harness")) {
+      addChatMessage("user", task);
+      input.value = "";
+      state.running = true;
+      $("send-btn").disabled = true;
+      send({ type: "task", task });
+      return;
+    }
     addChatMessage("user", task);
     input.value = "";
     state.running = true;
@@ -461,6 +485,122 @@
           container.appendChild(el("div", "empty-state small", "Aperçu non disponible"));
         });
     }
+  }
+
+  // ── Auto-amélioration (/refine) ─────────────────────────────
+
+  const LESSON_ICONS = {
+    pattern: "✦", heuristic: "⚙", pitfall: "⚠", memory: "★",
+  };
+  const TARGET_LABELS = {
+    prompt: "Prompt", skill: "Compétence", memory: "Mémoire", subagent: "Sous-agent",
+  };
+
+  function showRefineBanner() {
+    let banner = $("refine-banner");
+    if (!banner) {
+      banner = el("div", "refine-banner");
+      banner.id = "refine-banner";
+      const close = el("span", "refine-close", "✕");
+      close.onclick = () => banner.remove();
+      banner.appendChild(close);
+      $("chat-messages").appendChild(banner);
+    }
+    return banner;
+  }
+
+  function renderRefineProposal(report) {
+    const banner = showRefineBanner();
+    const inner = el("div", "refine-content");
+    const zk = report.zk_validation || {};
+    const metrics = (report.analysis || {}).metrics || {};
+    const lessons = report.lessons || [];
+
+    inner.appendChild(el("div", "refine-title", "🔧 Propositions d'auto-amélioration (RLM/Continual Harness)"));
+    inner.appendChild(el("div", "refine-meta",
+      `Leçons: ${lessons.length} · ZK-STARK: ${zk.valid ? "✓ valide" : "✕ rejetée"} · ` +
+      `Succès trajectoire: ${(metrics.success_rate || 0) * 100}% · Mises à jour: ${(report.proposed_updates || []).length}`
+    ));
+
+    const list = el("div", "refine-lessons");
+    lessons.forEach((l) => {
+      const row = el("div", `refine-lesson lesson-${l.type}`);
+      row.appendChild(el("span", "lesson-icon", LESSON_ICONS[l.type] || "•"));
+      const body = el("div", "lesson-body");
+      body.appendChild(el("div", "lesson-title", l.title || l.id));
+      body.appendChild(el("div", "lesson-content", l.content || ""));
+      const meta = el("div", "lesson-meta",
+        `${TARGET_LABELS[l.target] || l.target} · confiance ${(l.confidence || 0).toFixed(2)} · ${l.type}`
+      );
+      body.appendChild(meta);
+      row.appendChild(body);
+      list.appendChild(row);
+    });
+    inner.appendChild(list);
+
+    // Boutons Accepter / Rejeter (uniquement si des mises à jour sont proposées)
+    const actions = el("div", "refine-actions");
+    if ((report.proposed_updates || []).length > 0) {
+      const accept = el("button", "refine-btn accept", "✓ Appliquer au harnais");
+      accept.onclick = () => applyRefine(report);
+      const reject = el("button", "refine-btn reject", "✕ Rejeter");
+      reject.onclick = () => { banner.remove(); addChatMessage("assistant", "Propositions d'auto-amélioration rejetées."); };
+      actions.appendChild(accept);
+      actions.appendChild(reject);
+    } else {
+      actions.appendChild(el("span", "refine-empty", "Aucune mise à jour à proposer."));
+    }
+    inner.appendChild(actions);
+    banner.appendChild(inner);
+    $("chat-messages").scrollTop = $("chat-messages").scrollHeight;
+  }
+
+  function applyRefine(report) {
+    // Renvoie /refine apply au serveur pour appliquer les mises à jour
+    state.running = true;
+    $("send-btn").disabled = true;
+    addChatMessage("user", "/refine apply");
+    send({ type: "task", task: "/refine apply" });
+    // Nettoyer la bannière (le serveur renverra refine_applied)
+    const banner = $("refine-banner");
+    if (banner) banner.remove();
+  }
+
+  function renderRefineApplied(result) {
+    const version = result.version;
+    const count = (result.results || []).length;
+    addChatMessage("assistant",
+      `✅ Harnais mis à jour (v${version}) — ${count} opération(s) appliquée(s). ` +
+      `Snapshot: ${result.snapshot || "N/A"}`
+    );
+  }
+
+  function handleRefineDone(report) {
+    state.running = false;
+    $("send-btn").disabled = false;
+    if (!report) return;
+    const applied = report.applied || {};
+    const pdf = report.report_pdf || {};
+    let msg = `Auto-amélioration terminée : ${report.lessons ? report.lessons.length : 0} leçon(s)`;
+    if (applied.status) msg += ` · harnais ${applied.status} (v${applied.version || "?"})`;
+    if (pdf.filename) msg += ` · rapport PDF: ${pdf.filename}`;
+    addChatMessage("assistant", msg);
+    // Preview auto du rapport PDF
+    if (pdf.preview_url) {
+      showPreview(pdf.preview_url, pdf.filename);
+      fetchArtifacts();
+    }
+  }
+
+  function renderHarnessState(harnessState, trajectories) {
+    const v = harnessState.version || 0;
+    const memKeys = Object.keys(harnessState.memory || {});
+    const prompts = Object.keys(harnessState.prompts || {});
+    addChatMessage("assistant",
+      `📊 État du harnais : v${v} · ${memKeys.length} entrée(s) mémoire · ` +
+      `${prompts.length} prompt(s) · ${(harnessState.history || []).length} mise(s) à jour · ` +
+      `${(trajectories || []).length} trajectoire(s) archivée(s)`
+    );
   }
 
   // ── Done ─────────────────────────────────────────────────────

@@ -23,6 +23,8 @@ EVT_CHAT = "chat"                # message de chat (user/assistant)
 EVT_STATUS = "status"            # statut global de la session
 EVT_DONE = "done"                # pipeline terminé
 EVT_CONNECTORS = "connectors"    # statut des connecteurs API
+EVT_REFINE_PROPOSAL = "refine_proposal"  # propositions d'auto-amélioration (/refine)
+EVT_REFINE_APPLIED = "refine_applied"    # mises à jour appliquées au harnais
 
 
 class CascadeEmitter:
@@ -71,3 +73,9 @@ class CascadeEmitter:
 
     def done(self, summary: dict[str, Any]) -> None:
         self._emit(EVT_DONE, summary=summary)
+
+    def refine_proposal(self, report: dict[str, Any]) -> None:
+        self._emit(EVT_REFINE_PROPOSAL, report=report)
+
+    def refine_applied(self, result: dict[str, Any]) -> None:
+        self._emit(EVT_REFINE_APPLIED, result=result)

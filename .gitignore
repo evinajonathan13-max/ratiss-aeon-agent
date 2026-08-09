@@ -46,3 +46,8 @@ workspace/*.png
 workspace/*.html
 workspace/*.svg
 !workspace/.gitkeep
+
+# Harness d'auto-amélioration (état généré à l'exécution)
+# (trajectoires, leçons archivées, snapshots versionnés, état courant)
+harness/
+!harness/.gitkeep
