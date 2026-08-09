@@ -73,7 +73,7 @@ def _tryperposition(params: dict[str, Any]) -> dict[str, Any]:
     return bridge.run_tryperposition(**params)
 
 
-# ── Outils Terminal, Web, Content (type Manus IA) ────────────────────────────
+# ── Outils Terminal, Web, Content (agent agentique souverain) ────────────────────────────
 
 def _terminal(params: dict[str, Any], ctx: dict[str, Any] | None = None) -> dict[str, Any]:
     """Exécute une commande shell via le terminal sécurisé."""
@@ -148,7 +148,7 @@ def _generate_betti_diagram(params: dict[str, Any], ctx: dict[str, Any] | None =
     return generate_betti_diagram(diagrams, output_dir=workspace)
 
 
-# ── Outils Manus IA (browser, python, search, files) ──────────────────────────
+# ── Outils RATISS IA (browser, python, search, files) ──────────────────────────
 
 
 def _browser(params: dict[str, Any], ctx: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -198,7 +198,7 @@ SKILLS: dict[str, dict[str, Any]] = {
     "zk_proof": {"label": "Preuve ZK-STARK", "fn": _zk_proof, "category": "crypto"},
     "full_pipeline": {"label": "Pipeline complet", "fn": _full_pipeline, "category": "orchestration"},
     "tryperposition": {"label": "Tryperposition Q⊗I⊗M", "fn": _tryperposition, "category": "orchestration"},
-    # Terminal (type Manus IA)
+    # Terminal (agent agentique souverain)
     "terminal": {"label": "Terminal (commande shell)", "fn": _terminal, "category": "terminal"},
     "git_clone": {"label": "Cloner un dépôt Git", "fn": _git_clone, "category": "terminal"},
     # Web scientifique
@@ -213,7 +213,7 @@ SKILLS: dict[str, dict[str, Any]] = {
     "generate_chart": {"label": "Générer un graphique", "fn": _generate_chart, "category": "content"},
     "generate_webpage": {"label": "Générer une page web", "fn": _generate_webpage, "category": "content"},
     "generate_betti_diagram": {"label": "Diagramme de persistance", "fn": _generate_betti_diagram, "category": "content"},
-    # Manus IA — browser, python, search, files
+    # RATISS — browser, python, search, files
     "browser": {"label": "Navigation web (Playwright)", "fn": _browser, "category": "browser"},
     "python_execute": {"label": "Exécution Python sandbox", "fn": _python_execute, "category": "code"},
     "google_search": {"label": "Recherche web générale", "fn": _google_search, "category": "web"},

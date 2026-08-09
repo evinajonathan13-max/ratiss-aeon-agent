@@ -1,169 +1,18 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RATISS Aeon Prime — Agent Scientifique Souverain</title>
-<link rel="stylesheet" href="/static/style.css">
-<script src="/static/vendor/d3.min.js"></script>
-</head>
-<body>
-
-<header class="topbar">
-  <div class="brand">
-    <span class="logo">⚛</span>
-    <span class="title">RATISS <span class="version">Aeon Prime</span></span>
-    <span class="subtitle">Agent Scientifique Souverain</span>
-  </div>
-  <div class="status-bar">
-    <div class="metric" id="mem-badge">
-      <span class="metric-label">Memory Guard</span>
-      <span class="metric-value" id="mem-value">— / 7500 MB</span>
-      <div class="metric-bar"><div class="metric-fill" id="mem-fill"></div></div>
-    </div>
-    <div class="metric" id="cpu-badge">
-      <span class="metric-label">CPU</span>
-      <span class="metric-value" id="cpu-value">0 %</span>
-      <div class="metric-bar"><div class="metric-fill cpu" id="cpu-fill"></div></div>
-    </div>
-    <div class="conn-status" id="conn-status">● déconnecté</div>
-  </div>
-</header>
-
-<main class="layout">
-  <!-- Panneau 1: Chat -->
-  <section class="panel chat-panel">
-    <div class="panel-header">
-      <h2>Chat</h2>
-      <span class="panel-hint">Interagissez en langage naturel</span>
-    </div>
-    <div class="panel-body" id="chat-messages">
-      <div class="msg assistant">
-        <div class="msg-role">RATISS</div>
-        <div class="msg-content">Système initialisé. Agent scientifique souverain en ligne. Décrivez une tâche (ex: « Analyse 4MZI, extrais les Betti, génère un rapport PDF et une preuve ZK »).</div>
-      </div>
-    </div>
-    <div class="chat-input-area">
-      <textarea id="chat-input" placeholder="Envoyer un message... (ex: « Analyse 4MZI, extrais les Betti, génère un rapport PDF et une preuve ZK »). Commandes: /refine [apply] · /harness" rows="2"></textarea>
-      <button id="send-btn" title="Envoyer">➤</button>
-    </div>
-  </section>
-
-  <!-- Panneau 2: Raisonnement en cascade -->
-  <section class="panel cascade-panel">
-    <div class="panel-header">
-      <h2>Raisonnement en cascade</h2>
-      <span class="panel-hint" id="cascade-status">en attente</span>
-    </div>
-    <div class="panel-body" id="cascade-body">
-      <div class="empty-state">Les étapes de raisonnement apparaîtront ici.</div>
-    </div>
-    <div class="logs-section">
-      <div class="logs-header">Logs temps réel</div>
-      <div class="logs-body" id="logs-body"></div>
-    </div>
-  </section>
-
-  <!-- Colonne droite : Terminal + Browser/Python + Télémétrie + Preview -->
-  <section class="right-column">
-    <!-- Terminal intégré -->
-    <section class="panel terminal-panel">
-      <div class="panel-header">
-        <h2>Terminal</h2>
-        <span class="panel-hint" id="terminal-status">bash</span>
-      </div>
-      <div class="terminal-body" id="terminal-body"></div>
-      <div class="terminal-input-area">
-        <span class="prompt">$</span>
-        <input type="text" id="terminal-input" placeholder="git, pip, python, curl, ls..." autocomplete="off">
-      </div>
-    </section>
-
-    <!-- Browser + Python (Manus IA tools) -->
-    <section class="panel manus-panel">
-      <div class="panel-header">
-        <h2>Browser &amp; Code</h2>
-        <div class="tab-bar">
-          <button class="tab-btn active" data-tab="browser" id="tab-browser">🌐 Browser</button>
-          <button class="tab-btn" data-tab="python" id="tab-python">🐍 Python</button>
-          <button class="tab-btn" data-tab="search" id="tab-search">🔍 Search</button>
-        </div>
-      </div>
-      <div class="tab-content" id="tab-content-browser">
-        <div class="browser-controls">
-          <input type="text" id="browser-url" placeholder="https://arxiv.org" autocomplete="off">
-          <button id="browser-go" title="Naviguer">→</button>
-          <button id="browser-screenshot" title="Screenshot">📷</button>
-          <button id="browser-state" title="État">⚙</button>
-        </div>
-        <div class="browser-output" id="browser-output">
-          <div class="empty-state small">Entrez une URL et cliquez → pour naviguer</div>
-        </div>
-      </div>
-      <div class="tab-content hidden" id="tab-content-python">
-        <textarea id="python-code" placeholder="import numpy as np&#10;x = np.array([1,2,3,4,5])&#10;print(np.mean(x))&#10;x.sum()" rows="5"></textarea>
-        <button id="python-run" class="run-btn">▶ Exécuter</button>
-        <div class="python-output" id="python-output">
-          <div class="empty-state small">Le code s'exécute dans un sandbox Python</div>
-        </div>
-      </div>
-      <div class="tab-content hidden" id="tab-content-search">
-        <div class="search-controls">
-          <input type="text" id="search-query" placeholder="Lanczos algorithm quantum..." autocomplete="off">
-          <button id="search-btn">🔍</button>
-        </div>
-        <div class="search-output" id="search-output">
-          <div class="empty-state small">Recherche web (Tavily/DuckDuckGo)</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Télémétrie + Artéfacts + Preview -->
-    <section class="panel telemetry-panel">
-      <div class="panel-header">
-        <h2>Télémétrie & Artéfacts</h2>
-      </div>
-      <div class="panel-body">
-        <div class="sub-section">
-          <div class="sub-header">Mémoire (60s)</div>
-          <svg id="mem-chart" class="sparkline"></svg>
-        </div>
-        <div class="sub-section">
-          <div class="sub-header">CPU (60s)</div>
-          <svg id="cpu-chart" class="sparkline"></svg>
-        </div>
-        <div class="sub-section">
-          <div class="sub-header">Connecteurs API</div>
-          <div class="connectors-list" id="connectors-list">
-            <div class="empty-state small">Chargement...</div>
-          </div>
-        </div>
-        <div class="sub-section artifacts-section">
-          <div class="sub-header">Artéfacts <span class="session-id" id="session-id"></span></div>
-          <div class="artifacts-list" id="artifacts-list">
-            <div class="empty-state small">Aucun artéfact</div>
-          </div>
-        </div>
-        <div class="sub-section">
-          <div class="sub-header">Certification</div>
-          <div class="cert-hash" id="cert-hash">—</div>
-        </div>
-        <div class="sub-section preview-section">
-          <div class="sub-header">Aperçu artéfact</div>
-          <div class="preview-container" id="preview-container">
-            <div class="empty-state small">Cliquez sur un artéfact pour le prévisualiser</div>
-          </div>
-        </div>
-      </div>
-    </section>
-  </section>
-</main>
-
-<footer class="footer">
-  <span>Système souverain · CPU-only · Memory Guard 7500 MB</span>
-  <span class="academic">ORCID 0009-0000-4092-5313 · DOI 10.17605/OSF.IO/6JZMB · Jonathan Evina</span>
-</footer>
-
-<script src="/static/app.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta name="theme-color" content="#0b0b0b" />
+    <title>RATISS — Agent Scientifique Souverain</title>
+    <script type="module" crossorigin src="/assets/index-DGT4rQL6.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/icons-Ba24C9R8.js">
+    <link rel="modulepreload" crossorigin href="/assets/markdown-DEUUGi1S.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-ytHyQNf4.js">
+    <link rel="modulepreload" crossorigin href="/assets/motion-CtjZyITz.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-BSACWIw0.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
 </html>

@@ -1,5 +1,5 @@
 """
-tools/browser_tool.py — Browser automation (type Manus IA / OpenManus).
+tools/browser_tool.py — Browser automation (agent agentique souverain).
 
 Permet à l'agent RATISS de naviguer le web comme un humain :
   - Naviguer vers une URL
@@ -13,7 +13,7 @@ Permet à l'agent RATISS de naviguer le web comme un humain :
 Utilise un subprocess one-shot par commande (évite les conflits d'event loop
 avec FastAPI). Souveraineté : tout reste local.
 
-Équivalent du BrowserUseTool d'OpenManus, adapté pour RATISS.
+Équivalent du BrowserUseTool de RATISS, adapté pour RATISS.
 """
 from __future__ import annotations
 

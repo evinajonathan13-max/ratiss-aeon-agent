@@ -164,7 +164,7 @@ class NemotronClient:
                 cmd = "pip --version"
             steps.append({"id": sid, "action": "terminal", "params": {"command": cmd}, "description": f"Terminal: {cmd}"})
 
-        # Manus IA — Browser (navigation web interactive)
+        # RATISS — Browser (navigation web interactive)
         if any(k in t for k in ["navigate", "ouvre le site", "ouvrir le site", "visite", "browser", "naviguer", "site web", "clique sur", "scrolle"]):
             sid = len(steps) + 1
             # Extraire l'URL si présente
@@ -178,7 +178,7 @@ class NemotronClient:
             else:
                 steps.append({"id": sid, "action": "browser", "params": {"action": "navigate", "url": url}, "description": f"Browser: naviguer vers {url}"})
 
-        # Manus IA — Python execution (si l'utilisateur demande du code)
+        # RATISS — Python execution (si l'utilisateur demande du code)
         if any(k in t for k in ["python", "exécute le code", "execute code", "calcule", "script", "fonction", "numpy", "scipy", "matplotlib", "code python"]):
             sid = len(steps) + 1
             code = "import numpy as np\nx = np.linspace(0, 10, 100)\nprint('mean:', np.mean(x))\nprint('std:', np.std(x))"
@@ -191,7 +191,7 @@ class NemotronClient:
                 code = "import numpy as np\nA = np.array([[1,2],[3,4]])\nprint('det:', np.linalg.det(A))\nprint('eig:', np.linalg.eigvals(A))"
             steps.append({"id": sid, "action": "python_execute", "params": {"code": code}, "description": "Python: exécuter du code"})
 
-        # Manus IA — Google search (recherche web générale)
+        # RATISS — Google search (recherche web générale)
         if any(k in t for k in ["google", "recherche web", "search", "cherche sur le web", "trouve sur internet"]):
             if not any(k in t for k in ["arxiv", "pubmed", "chembl"]):  # ne pas dupliquer avec web scientifique
                 sid = len(steps) + 1
@@ -205,12 +205,12 @@ class NemotronClient:
                     query = "quantum physics"
                 steps.append({"id": sid, "action": "google_search", "params": {"query": query[:100]}, "description": f"Recherche web: {query[:50]}"})
 
-        # Manus IA — File editor (créer/éditer un fichier)
+        # RATISS — File editor (créer/éditer un fichier)
         if any(k in t for k in ["crée le fichier", "create file", "édite le fichier", "edit file", "modifie le fichier", "str replace", "file editor"]):
             sid = len(steps) + 1
             steps.append({"id": sid, "action": "file_editor", "params": {"action": "create", "path": "output.txt", "content": "# Fichier créé par RATISS Aeon Agent"}, "description": "File editor: créer un fichier"})
 
-        # Manus IA — File saver (sauvegarder du contenu)
+        # RATISS — File saver (sauvegarder du contenu)
         if any(k in t for k in ["sauvegarde", "save", "enregistre le fichier", "écris dans un fichier"]):
             sid = len(steps) + 1
             steps.append({"id": sid, "action": "file_saver", "params": {"filename": "output.txt", "content": "Contenu sauvegardé par RATISS"}, "description": "Sauvegarder un fichier"})

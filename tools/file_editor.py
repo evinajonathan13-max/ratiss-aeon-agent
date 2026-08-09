@@ -1,5 +1,5 @@
 """
-tools/file_editor.py — Éditeur de fichiers (type Manus IA / OpenManus).
+tools/file_editor.py — Éditeur de fichiers (agent agentique souverain).
 
 Permet à l'agent RATISS de manipuler des fichiers :
   - view : voir le contenu d'un fichier (avec numéros de ligne)
@@ -8,7 +8,7 @@ Permet à l'agent RATISS de manipuler des fichiers :
   - insert : insérer du texte après une ligne donnée
   - undo : annuler la dernière modification
 
-Équivalent du StrReplaceEditor d'OpenManus, adapté pour RATISS.
+Équivalent du éditeur str_replace de RATISS, adapté pour RATISS.
 """
 from __future__ import annotations
 

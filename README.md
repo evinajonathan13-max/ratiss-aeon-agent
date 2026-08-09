@@ -1,6 +1,6 @@
 # RATISS Aeon Agent
 
-**Agent scientifique autonome souverain** — type Manus IA / OpenManus, combinant physique quantique (Lanczos ED), topologie computationnelle, biologie structurale, cryptographie (ZK-STARK), **browser web (Playwright)**, **terminal intégré**, **exécution Python sandbox**, **recherche web générale**, **éditeur de fichiers** et **génération de contenu** (PDF, graphiques, pages web).
+**Agent scientifique autonome souverain** — agent agentique souverain, combinant physique quantique (Lanczos ED), topologie computationnelle, biologie structurale, cryptographie (ZK-STARK), **browser web (Playwright)**, **terminal intégré**, **exécution Python sandbox**, **recherche web générale**, **éditeur de fichiers** et **génération de contenu** (PDF, graphiques, pages web).
 
 > Auteur : **Jonathan Evina** · ORCID [0009-0000-4092-5313](https://orcid.org/0009-0000-4092-5313) · DOI [10.17605/OSF.IO/6JZMB](https://doi.org/10.17605/OSF.IO/6JZMB)
 
@@ -27,11 +27,11 @@ RATISS (Real-time Adaptive Topological & Integrative Scientific System) Aeon Pri
 
 Le tout dans un Memory Guard strict (7500 Mo, CPU-only), 100 % souverain : aucune donnée ne quitte la machine sans clé API explicite.
 
-## Nouveautés — Manus IA tools (v9.1)
+## Nouveautés — outils agentiques (v9.1)
 
-RATISS intègre désormais les mêmes capacités qu'OpenManus/Manus IA :
+RATISS intègre désormais les mêmes capacités qu'RATISS/agent agentique :
 
-| Outil | Équivalent OpenManus | Description |
+| Outil | Équivalent RATISS | Description |
 |-------|---------------------|-------------|
 | **Browser** (Playwright) | `BrowserUseTool` | Naviguer, cliquer, taper, extraire, screenshot, scroller |
 | **PythonExecute** | `PythonExecute` | Exécuter du code Python dans un sandbox (numpy, scipy, matplotlib) |
@@ -168,15 +168,46 @@ peut être branché, mais le chemin par défaut reste local.
 ```bash
 pip install -r requirements.txt
 cp .env.example .env   # optionnel : configurer les clés API
-python -m app.server   # UI : http://localhost:7860
+
+# Frontend (build React → app/static/)
+cd app/frontend && npm install && npm run build && cd ../..
+
+python -m app.server   # UI : http://localhost:12000
 ```
 
-## Interface web (4 panneaux)
+> Le frontend React (Vite + TypeScript + Tailwind) se build dans `app/static/`
+> et est servi directement par FastAPI. Aucun serveur Node en production.
 
-- **Chat** : Décrivez une tâche en langage naturel
-- **Raisonnement en cascade** : Plan + étapes en temps réel + logs
-- **Terminal** : Exécutez des commandes shell (git, pip, curl...) avec sortie streaming temps réel
-- **Télémétrie & Artéfacts** : Memory Guard, CPU, connecteurs, artéfacts previewable, certification ZK
+## Interface web — UI React immersive (v9.3)
+
+RATISS embarque désormais une interface React/TypeScript moderne, centrée sur
+la fenêtre de chat principale avec un rendu agentique en temps réel.
+
+**Architecture frontend** (`app/frontend/`) :
+- **Vite 6 + React 19 + TypeScript + Tailwind v4**
+- **Sidebar** : sessions, import, mode Competition, profil souverain
+- **MessageBubble** : markdown rendu (react-markdown + remark-gfm), raisonnement
+  dépliable, nombres de Betti, preuve ZK, artéfacts
+- **ThinkingLoader** : décomposition agentique des étapes en direct
+- **ChatInput** : zone de saisie + attachements + mode raisonnement
+- **PredictiveSuggestions** : suggestions contextuelles
+- **AgenticActionCard** : cartes d'actions agentiques (PDF, recherche…)
+- **Timeline agentique** : RatissAgentViewer (exécution en direct)
+- **Panneaux d'inspiration** : SovereignLab, InteractiveTerminal, RatissLive,
+  TopologicalVideoPlayer, VoiceManager, ChromeniumBrowser, SettingsBranch
+
+**Pont backend → frontend** :
+- `POST /api/chat` (SSE) — lance l'agent RATISS, streame les événements cascade
+  (plan → Think/Act/Observe → ZK → résumé) au format `{content|reasoning}`
+- Endpoints de compatibilité : `/api/stats`, `/api/config/*`, `/api/agentic/*`,
+  `/api/competition/*`, `/api/tts/*`, `/api/ratiss-shell/chat`
+- WebSocket `/ws` (multiplexé) toujours disponible pour le streaming temps réel
+
+**Développement frontend** :
+```bash
+cd app/frontend
+npm run dev    # Vite dev server sur :5173 (proxy vers backend :12000)
+```
 
 Exemples de tâches :
 - `Analyse 4MZI, extrais les Betti, génère un graphique et un rapport PDF, certifie ZK`
@@ -202,6 +233,18 @@ Exemples de tâches :
 | `/api/pdb` | GET | Structures PDB locales |
 | `/api/skills` | GET | 23 compétences disponibles |
 | `/api/run?task=...` | POST | Exécution synchrone (ReAct) |
+| `/api/chat` | POST | Chat principal SSE (streaming `{content\|reasoning}` vers l'UI React) |
+| `/api/stats` | GET/POST | Compteur de requêtes (compat UI) |
+| `/api/config/status` | GET | État de configuration (clé API OpenRouter) |
+| `/api/config/key` | POST | Configure la clé API OpenRouter |
+| `/api/agentic/decompose-task` | POST | Décomposition agentique d'un prompt en étapes |
+| `/api/agentic/predict-next` | POST | Suggestions prédictives contextuelles |
+| `/api/agentic/search-grounding` | POST | Recherche web pour grounding factuel |
+| `/api/competition/analyze` | POST | Analyse forensics d'un fichier attaché |
+| `/api/competition/execute` | POST | Exécution Python agentique (mode Phenix ODV) |
+| `/api/ratiss-shell/chat` | POST | Chat synchrone du shell RATISS |
+| `/api/tts/voices` | GET | Liste des voix TTS disponibles |
+| `/api/tts/status` | GET | État du moteur TTS |
 | `/api/terminal?command=...` | POST | Exécution directe terminal |
 | `/api/browser` | POST | Browser automation (navigate, click, screenshot...) |
 | `/api/python` | POST | Exécution Python sandbox |
@@ -226,7 +269,7 @@ Exemples de tâches :
 | `full_pipeline` | Pipeline complet RATISS | Orchestration |
 | `tryperposition` | Tryperposition unifiée Q ⊗ I ⊗ M | Orchestration |
 
-### Terminal (2) — type Manus IA
+### Terminal (2) — agent agentique souverain
 | Action | Description | Catégorie |
 |--------|-------------|-----------|
 | `terminal` | Exécute une commande shell (streaming WebSocket temps réel) | Terminal |
@@ -253,7 +296,7 @@ Sécurité : allowlist stricte, détection de patterns dangereux (rm -rf /, sudo
 | `generate_webpage` | Page HTML previewable (style intégré) | Contenu |
 | `generate_betti_diagram` | Diagramme de persistance (topologie) | Contenu |
 
-### Manus IA tools (5) — nouveaux en v9.1
+### outils agentiques (5) — nouveaux en v9.1
 | Action | Description | Catégorie |
 |--------|-------------|-----------|
 | `browser` | Navigation web Playwright (navigate, click, type, extract, screenshot, scroll, state, back) | Browser |

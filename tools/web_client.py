@@ -1,5 +1,5 @@
 """
-tools/web_client.py — Accès web scientifique (type Manus IA).
+tools/web_client.py — Accès web scientifique (agent agentique souverain).
 
 Permet à l'agent de :
   - fetch(url)            : récupérer le contenu d'une URL (HTML, JSON, texte)
