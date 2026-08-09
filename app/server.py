@@ -393,6 +393,89 @@ async def chat_sse(body: dict = None):
     if model_id:
         os.environ["RATISS_MODEL_ID"] = model_id
 
+    # ── Commandes slash d'auto-amélioration (couche RLM) ──────────────
+    # /refine       → analyse la trajectoire courante, propose des leçons
+    # /refine apply → analyse + applique les mises à jour au harnais
+    # /harness      → affiche l'état du harnais (version, prompts, mémoire…)
+    _slash = task.lower().strip()
+    if _slash.startswith("/refine") or _slash == "/harness" or _slash.startswith("/harness"):
+        from orchestrator.auto_improve import refine as _refine_fn
+        from orchestrator.harness_manager import get_harness as _get_harness
+
+        async def _slash_stream():
+            if _slash.startswith("/harness"):
+                h = _get_harness()
+                st = h.state()
+                lines = [
+                    "## 🧠 Harnais d'auto-amélioration (Continual Harness)",
+                    f"**Version:** {st.get('version', 0)}",
+                    f"**Créé le:** {st.get('created_at', '?')}",
+                    f"**Mis à jour:** {st.get('updated_at', '?')}",
+                    f"\n**Prompts ({len(st.get('prompts', {}))}):** " + ", ".join(st.get("prompts", {}).keys()) or "—",
+                    f"**Compétences ({len(st.get('skills', {}))}):** " + ", ".join(st.get("skills", {}).keys()) or "—",
+                    f"**Mémoire ({len(st.get('memory', {}))}):** " + ", ".join(st.get("memory", {}).keys()) or "—",
+                    f"**Leçons appliquées:** {len(st.get('lessons_applied', []))}",
+                    f"**Historique:** {len(st.get('history', []))} versions",
+                    f"\n*Trajectoires archivées: {len(h.list_trajectories())}*",
+                    f"\n💡 Tapez `/refine` pour analyser la dernière trajectoire, ou `/refine apply` pour appliquer les leçons.",
+                ]
+                yield f"data: {json.dumps({'content': '\\n'.join(lines) + '\\n'}, ensure_ascii=False)}\n\n"
+            else:
+                apply = "apply" in _slash
+                h = _get_harness()
+                trajs = h.list_trajectories()
+                if not trajs:
+                    yield f"data: {json.dumps({'content': '⚠️ Aucune trajectoire archivée. Lancez d abord une tâche complexe (ex: 4MZI + Betti + ZK).\\n'}, ensure_ascii=False)}\n\n"
+                else:
+                    traj = h.load_trajectory(trajs[0]["file"])
+                    summary = traj.get("summary", {})
+                    plan = traj.get("plan", {})
+                    report = await asyncio.to_thread(_refine_fn, summary, plan)
+
+                    analysis = report.get("analysis", {})
+                    metrics = analysis.get("metrics", {})
+                    lessons = report.get("lessons", [])
+                    updates = report.get("proposed_updates", [])
+                    zk = report.get("zk_validation", {})
+
+                    lines = [
+                        "## 🔄 Auto-amélioration RLM — Analyse de trajectoire",
+                        f"**Tâche:** {analysis.get('task', '?')[:80]}",
+                        f"**Domaine:** {analysis.get('domain', '?')}",
+                        f"**Succès:** {metrics.get('success_rate', 0):.0%} ({metrics.get('steps_success', 0)}/{metrics.get('steps_executed', 0)} étapes)",
+                        f"**ZK-STARK:** {'✅ Validé' if metrics.get('zk_validated') else '❌ Non validé'}",
+                        f"**Temps:** {metrics.get('execution_time_sec', 0):.2f}s",
+                        f"**Stuck détecté:** {'⚠️ Oui' if metrics.get('stuck_detected') else 'Non'}",
+                    ]
+
+                    lines.append(f"\n### 📚 Leçons extraites ({len(lessons)})")
+                    for i, l in enumerate(lessons):
+                        lines.append(f"{i+1}. **[{l.get('type','?')}]** {l.get('title','')} _(confiance: {l.get('confidence',0):.0%})_")
+                        lines.append(f"   > {l.get('content','')[:120]}")
+
+                    lines.append(f"\n### 🔧 Propositions de mise à jour du harnais ({len(updates)})")
+                    for i, u in enumerate(updates):
+                        lines.append(f"{i+1}. `{u.get('op','?')}` → {u.get('target','?')} (confiance: {u.get('confidence',0):.0%})")
+
+                    lines.append(f"\n🔐 **Validation ZK:** {'✅ Toutes les leçons respectent les invariants' if zk.get('valid') else '⚠️ ' + str(zk.get('reason',''))}")
+
+                    if apply:
+                        applied = h.apply_updates(updates, reason="slash_refine")
+                        for lesson in lessons:
+                            h.archive_lesson(lesson)
+                        lines.append(f"\n### ✅ Appliqué au harnais")
+                        lines.append(f"**Nouvelle version:** {applied.get('version', '?')}")
+                        lines.append(f"**Mises à jour:** {len(applied.get('results', []))}")
+                        lines.append(f"**Snapshot:** `{applied.get('snapshot', '')[-40:]}`")
+                    else:
+                        lines.append(f"\n💡 Tapez `/refine apply` pour appliquer ces {len(updates)} mise(s) à jour au harnais.")
+
+                    yield f"data: {json.dumps({'content': '\\n'.join(lines) + '\\n'}, ensure_ascii=False)}\n\n"
+            yield "data: [DONE]\n\n"
+
+        from starlette.responses import StreamingResponse
+        return StreamingResponse(_slash_stream(), media_type="text/event-stream")
+
     evt_q: _queue.Queue = _queue.Queue()
     loop = asyncio.get_event_loop()
 

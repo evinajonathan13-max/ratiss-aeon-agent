@@ -232,12 +232,13 @@ RATISS supporte désormais **4 fournisseurs LLM** pour la planification et le ra
 | **Anthropic** | Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus | `ANTHROPIC_API_KEY` |
 | **Google Gemini** | Gemini 2.0 Flash, Gemini 1.5 Pro, Gemini 1.5 Flash | `GEMINI_API_KEY` |
 | **OpenAI** | GPT-4o, GPT-4o mini, o1 | `OPENAI_API_KEY` |
-| **OpenRouter** | Nemotron 3 Ultra, Llama 3.3 70B, DeepSeek R1, Qwen 2.5 72B | `OPENROUTER_API_KEY` |
+| **OpenRouter** | Nemotron 3 Ultra, Llama 3.3 70B, DeepSeek R1, Qwen 2.5 72B — **+ tout modèle OpenRouter personnalisé** | `OPENROUTER_API_KEY` |
 | **Souverain** | RATISS Local (heuristique, hors cloud) | aucune clé requise |
 
 **Architecture** (`orchestrator/llm_router.py`) :
 - `LLMRouter` sélectionne le fournisseur selon le `model_id` (`anthropic/...`, `google/...`, `openai/...`, `openrouter/...`, `local/...`)
 - Chaque fournisseur expose `complete()` (chat libre) et `plan()` (planification structurée)
+- **Modèle OpenRouter personnalisable** : l'utilisateur peut saisir n'importe quel ID de modèle OpenRouter (ex: `meta-llama/llama-3.1-405b-instruct:free`, `mistralai/mistral-large:free`) — le routeur parse le `model_id` (split sur la première barre oblique) et route automatiquement vers le provider OpenRouter. Aucune liste figée.
 - **Fallback souverain** : si aucune clé n'est configurée ou si l'API échoue (401, timeout…), l'agent bascule automatiquement sur le planificateur heuristique local — aucune tâche ne reste bloquée
 - Configuration dynamique via l'UI : le sélecteur de modèles affiche les badges "Connecté/Non configuré" en temps réel
 - Aucune clé n'est jamais loggée
@@ -260,7 +261,7 @@ curl -X POST http://localhost:12000/api/llm/test \
   -d '{"model_id":"google/gemini-2.0-flash","prompt":"Bonjour"}'
 ```
 
-**Configuration via l'UI** : le badge "ENGINE" en haut du chat ouvre le sélecteur de modèles groupé par fournisseur. Le bouton "CONFIGURER CLÉS API →" permet d'injecter une clé pour n'importe quel fournisseur.
+**Configuration via l'UI** : le badge "ENGINE" en haut du chat ouvre le sélecteur de modèles groupé par fournisseur. Le bouton "CONFIGURER CLÉS API →" permet d'injecter une clé pour n'importe quel fournisseur. La section **« Modèle OpenRouter personnalisé »** (encadré violet) permet de saisir n'importe quel ID de modèle OpenRouter (sans préfixe `openrouter/`), de l'ajouter à la liste et de le sélectionner — le modèle est sauvegardé dans le localStorage et persiste entre les sessions.
 
 ### Captures d'écran
 
@@ -269,6 +270,8 @@ Voir `screenshots/ui-v9.3/` :
 - `02-multi-llm-selector.png` — Sélecteur de modèles multi-fournisseurs (Anthropic, Google, OpenAI, OpenRouter, Souverain)
 - `03-api-key-config.png` — Modal de configuration des clés API multi-provider
 - `04-sovereign-lab.png` — SovereignLab (modules quantum, topologie, pipeline Aeon)
+- `05-openrouter-custom-input.png` — Champ de saisie personnalisé OpenRouter (modèle libre, non figé)
+- `06-refine-command-chat.png` — Commande `/refine` dans le chat (analyse trajectoire + leçons + validation ZK)
 
 ## API REST
 

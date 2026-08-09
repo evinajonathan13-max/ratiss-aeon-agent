@@ -48,7 +48,7 @@ import { SettingsBranch } from "./components/SettingsBranch";
 import { ChatInput, ChatInputHandle } from "./components/ChatInput";
 import { RatissLive } from "./components/RatissLive";
 import { PredictiveSuggestions } from "./components/PredictiveSuggestions";
-import { Message, ChatSession, QueryLevel, InterfaceTheme, CalculationMode } from "./types";
+import { Message, ChatSession, QueryLevel, InterfaceTheme, CalculationMode, ModelInfo } from "./types";
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -101,6 +101,38 @@ export default function App() {
   const [globalModelId, setGlobalModelId] = useState(() => {
     return localStorage.getItem("ratiss_selected_model_id") || "anthropic/claude-3-5-sonnet";
   });
+
+  // Champ personnalisé OpenRouter — l'utilisateur peut saisir n'importe quel model_id
+  const [customOpenRouterModel, setCustomOpenRouterModel] = useState(() => {
+    return localStorage.getItem("ratiss_custom_openrouter_model") || "";
+  });
+  // Modèles OpenRouter personnalisés sauvegardés par l'utilisateur
+  const [savedOpenRouterModels, setSavedOpenRouterModels] = useState<ModelInfo[]>(() => {
+    try {
+      const raw = localStorage.getItem("ratiss_custom_openrouter_models");
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
+
+  const addCustomOpenRouterModel = (modelId: string) => {
+    const id = modelId.trim();
+    if (!id) return;
+    const fullId = id.startsWith("openrouter/") ? id : `openrouter/${id}`;
+    // Ne pas dupliquer
+    const exists = MODELS.some(m => m.id === fullId) || savedOpenRouterModels.some(m => m.id === fullId);
+    if (exists) return;
+    const name = fullId.split("/").pop() || "Custom OR";
+    const newModel: ModelInfo = {
+      id: fullId,
+      name: name.length > 24 ? name.substring(0, 22) + "…" : name,
+      provider: "OpenRouter",
+      desc: "Modèle OpenRouter personnalisé",
+    };
+    const updated = [...savedOpenRouterModels, newModel];
+    setSavedOpenRouterModels(updated);
+    localStorage.setItem("ratiss_custom_openrouter_models", JSON.stringify(updated));
+    localStorage.setItem("ratiss_custom_openrouter_model", id);
+  };
 
   useEffect(() => {
     const handleModelChanged = () => {
@@ -1314,8 +1346,10 @@ export default function App() {
                       "Anthropic": "anthropic", "Google": "google", "OpenAI": "openai",
                       "OpenRouter": "openrouter", "Souverain": "local",
                     };
-                    const groups: Record<string, typeof MODELS> = {};
-                    MODELS.forEach(m => {
+                    // Fusionner les modèles prédéfinis avec les modèles OpenRouter personnalisés
+                    const allModels = [...MODELS, ...savedOpenRouterModels];
+                    const groups: Record<string, ModelInfo[]> = {};
+                    allModels.forEach(m => {
                       if (!groups[m.provider]) groups[m.provider] = [];
                       groups[m.provider].push(m);
                     });
@@ -1383,7 +1417,59 @@ export default function App() {
                     })()}
                   </div>
 
-                <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between text-[9px] font-mono text-slate-500 uppercase tracking-widest font-bold px-2">
+                {/* Section de saisie personnalisée OpenRouter */}
+                <div className="mt-4 p-3 rounded-2xl border border-purple-500/20 bg-purple-500/[0.03]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[9px] font-mono text-purple-400 uppercase tracking-[0.2em] font-bold flex items-center gap-1.5">
+                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+                      </svg>
+                      Modèle OpenRouter personnalisé
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={customOpenRouterModel}
+                      onChange={(e) => setCustomOpenRouterModel(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && customOpenRouterModel.trim()) {
+                          addCustomOpenRouterModel(customOpenRouterModel);
+                          const fullId = customOpenRouterModel.trim().startsWith("openrouter/")
+                            ? customOpenRouterModel.trim()
+                            : `openrouter/${customOpenRouterModel.trim()}`;
+                          updateGlobalModelId(fullId);
+                          setCustomOpenRouterModel("");
+                          setIsOpenRouterModelMenuOpen(false);
+                        }
+                      }}
+                      placeholder="ex: nvidia/nemotron-3-ultra-550b-a55b:free"
+                      className="flex-1 px-3 py-2 text-[11px] font-mono bg-black/30 border border-white/10 rounded-lg text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500/50 transition-colors"
+                    />
+                    <button
+                      onClick={() => {
+                        if (customOpenRouterModel.trim()) {
+                          addCustomOpenRouterModel(customOpenRouterModel);
+                          const fullId = customOpenRouterModel.trim().startsWith("openrouter/")
+                            ? customOpenRouterModel.trim()
+                            : `openrouter/${customOpenRouterModel.trim()}`;
+                          updateGlobalModelId(fullId);
+                          setCustomOpenRouterModel("");
+                          setIsOpenRouterModelMenuOpen(false);
+                        }
+                      }}
+                      disabled={!customOpenRouterModel.trim()}
+                      className="px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300 rounded-lg border border-purple-500/30 hover:bg-purple-500/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    >
+                      Ajouter +
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[9px] font-mono text-slate-600 leading-relaxed">
+                    Saisissez l'ID du modèle OpenRouter (sans le préfixe openrouter/). Ex: meta-llama/llama-3.1-405b-instruct:free, mistralai/mistral-large:free, etc. Appuyez sur Entrée pour sélectionner.
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-[9px] font-mono text-slate-500 uppercase tracking-widest font-bold px-2">
                   <span>ORCHESTRATION SOUVERAINE RATISS</span>
                   <button
                     onClick={() => { setIsOpenRouterModelMenuOpen(false); setIsConfigModalOpen(true); }}
