@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environnement
+.env
+.venv/
+venv/
+env/
+
+# Secrets — JAMAIS committer
+*.key
+*.pem
+secrets/
+config/agent_aligned.json
+
+# Workspace artefacts (générés à l'exécution)
+workspace/*/session_*/
+workspace/vault/
+workspace/*/step_*.json
+workspace/*/result.json
+workspace/*/zk_receipt.b64
+!workspace/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+tmp_exports/
+
+# Workspace generated artifacts (PDFs, PNGs, HTML)
+workspace/*/
+workspace/*.pdf
+workspace/*.png
+workspace/*.html
+workspace/*.svg
+!workspace/.gitkeep
