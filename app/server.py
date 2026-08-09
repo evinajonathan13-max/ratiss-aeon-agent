@@ -154,19 +154,83 @@ async def stats_inc():
 
 @app.get("/api/config/status")
 async def config_status():
-    """État de configuration (clé API OpenRouter)."""
-    key = os.environ.get("OPENROUTER_API_KEY", "")
-    return {"configured": bool(key), "has_key": bool(key)}
+    """État de configuration — tous les fournisseurs LLM."""
+    from orchestrator.llm_router import llm_router
+
+    status = llm_router.status()
+    any_configured = any(p["configured"] for p in status["providers"].values())
+    return {"configured": any_configured, "providers": status["providers"], "default_model": status["default_model"]}
 
 
 @app.post("/api/config/key")
 async def config_key(body: dict = None):
+    """Configure une clé API pour un fournisseur LLM.
+
+    Body: {"provider": "anthropic|google|openai|openrouter", "api_key": "sk-..."}
+    """
+    from orchestrator.llm_router import set_api_key, llm_router
+
     body = body or {}
-    key = body.get("api_key", "").strip()
-    if key:
-        os.environ["OPENROUTER_API_KEY"] = key
-        return {"configured": True}
-    return JSONResponse({"error": "missing_api_key"}, status_code=400)
+    provider = body.get("provider", body.get("provider_id", ""))
+    api_key = body.get("api_key", "").strip()
+    if not provider or not api_key:
+        return JSONResponse({"error": "missing_provider_or_key"}, status_code=400)
+    ok = set_api_key(provider, api_key)
+    if not ok:
+        return JSONResponse({"error": "unknown_provider", "provider": provider}, status_code=400)
+    # Si un model_id est fourni, l'activer comme défaut
+    if body.get("model_id"):
+        os.environ["RATISS_MODEL_ID"] = body["model_id"]
+    status = llm_router.status()
+    return {"configured": True, "provider": provider, "providers": status["providers"]}
+
+
+@app.get("/api/llm/models")
+async def llm_models():
+    """Liste tous les modèles disponibles (catalogue multi-fournisseurs)."""
+    from orchestrator.llm_router import llm_router
+
+    return llm_router.status()
+
+
+@app.get("/api/llm/status")
+async def llm_status():
+    """Alias de /api/llm/models — état des fournisseurs LLM."""
+    from orchestrator.llm_router import llm_router
+
+    return llm_router.status()
+
+
+@app.post("/api/llm/test")
+async def llm_test(body: dict = None):
+    """Teste une connexion LLM en envoyant un prompt simple.
+
+    Body: {"model_id": "anthropic/claude-3-5-sonnet", "prompt": "Dis bonjour"}
+    """
+    from orchestrator.llm_router import llm_router
+
+    body = body or {}
+    model_id = body.get("model_id", "")
+    prompt = body.get("prompt", "Réponds en une phrase : quel est ton nom et ton modèle ?")
+    try:
+        text = llm_router.complete(prompt, model_id=model_id, max_tokens=256)
+        return {"status": "SUCCESS", "model_id": model_id, "response": text}
+    except Exception as e:
+        return {"status": "FAILED", "model_id": model_id, "error": str(e)}
+
+
+@app.post("/api/llm/select")
+async def llm_select(body: dict = None):
+    """Sélectionne le modèle LLM par défaut pour l'agent.
+
+    Body: {"model_id": "anthropic/claude-3-5-sonnet"}
+    """
+    body = body or {}
+    model_id = body.get("model_id", "")
+    if not model_id:
+        return JSONResponse({"error": "missing_model_id"}, status_code=400)
+    os.environ["RATISS_MODEL_ID"] = model_id
+    return {"status": "SUCCESS", "model_id": model_id}
 
 
 @app.post("/api/agentic/decompose-task")

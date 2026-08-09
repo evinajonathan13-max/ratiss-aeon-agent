@@ -10,6 +10,7 @@
 ## Architecture (23 skills + couche RLM)
 - `kernel/` — Noyau scientifique RATISS V9 (main.py, bridge.py, solvers/, connectors/, core/, system/, zk/)
 - `orchestrator/` — Agent agentique avec **boucle ReAct** (agent.py, nemotron_client.py, skill_manager.py, cascade.py)
+  - `llm_router.py` — **NOUVEAU v9.3.1** Routeur LLM multi-fournisseurs : Anthropic (Claude), Google (Gemini), OpenAI (GPT), OpenRouter (Nemotron) + fallback souverain local. `complete()`, `plan()`, `set_api_key()`, catalogue de 14 modèles
   - `auto_improve.py` — **NOUVEAU v9.2** Couche RLM : analyze_trajectory, extract_lessons (pattern/heuristic/pitfall/memory), validate_lessons_with_zk, pipeline refine()
   - `harness_manager.py` — **NOUVEAU v9.2** Continual Harness : état persistant versionné (prompts/skills/memory/subagents), CRUD, snapshots + rollback, archive leçons & trajectoires
 - `tools/` — outils agentiques :

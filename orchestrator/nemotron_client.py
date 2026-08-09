@@ -50,7 +50,25 @@ class NemotronClient:
         self.model = MODEL
 
     def plan(self, task: str) -> dict[str, Any]:
-        """Planifie une tâche : Nemotron si disponible, sinon fallback local."""
+        """Planifie une tâche : route vers le LLM configuré, sinon fallback local.
+
+        Le fournisseur est sélectionné via la variable d'environnement RATISS_MODEL_ID
+        (ex: 'anthropic/claude-3-5-sonnet', 'google/gemini-2.0-flash', 'openai/gpt-4o').
+        Si absent ou 'local/...', utilise le planificateur local heuristique.
+        """
+        model_id = os.environ.get("RATISS_MODEL_ID", "")
+        if model_id and not model_id.startswith("local/"):
+            try:
+                from orchestrator.llm_router import llm_router
+
+                plan = llm_router.plan(task, model_id=model_id)
+                if not plan.get("_parse_error"):
+                    return plan
+                logger.warning(f"[NEMOTRON] Plan LLM illisible pour {model_id}, fallback local.")
+            except Exception as e:
+                logger.warning(f"[NEMOTRON] Échec routeur LLM ({model_id}): {e}, fallback local.")
+
+        # Chemin OpenRouter direct (legacy)
         if self.available:
             try:
                 return self._call_openrouter(task)

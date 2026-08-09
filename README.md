@@ -223,6 +223,53 @@ Exemples de tâches :
 - `Pipeline complet quantique + topologie + certification`
 - `Tryperposition unifiée Q ⊗ I ⊗ M`
 
+### Routeur LLM multi-fournisseurs
+
+RATISS supporte désormais **4 fournisseurs LLM** pour la planification et le raisonnement :
+
+| Fournisseur | Modèles | Variable d'environnement |
+|-------------|---------|------------------------|
+| **Anthropic** | Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus | `ANTHROPIC_API_KEY` |
+| **Google Gemini** | Gemini 2.0 Flash, Gemini 1.5 Pro, Gemini 1.5 Flash | `GEMINI_API_KEY` |
+| **OpenAI** | GPT-4o, GPT-4o mini, o1 | `OPENAI_API_KEY` |
+| **OpenRouter** | Nemotron 3 Ultra, Llama 3.3 70B, DeepSeek R1, Qwen 2.5 72B | `OPENROUTER_API_KEY` |
+| **Souverain** | RATISS Local (heuristique, hors cloud) | aucune clé requise |
+
+**Architecture** (`orchestrator/llm_router.py`) :
+- `LLMRouter` sélectionne le fournisseur selon le `model_id` (`anthropic/...`, `google/...`, `openai/...`, `openrouter/...`, `local/...`)
+- Chaque fournisseur expose `complete()` (chat libre) et `plan()` (planification structurée)
+- **Fallback souverain** : si aucune clé n'est configurée ou si l'API échoue (401, timeout…), l'agent bascule automatiquement sur le planificateur heuristique local — aucune tâche ne reste bloquée
+- Configuration dynamique via l'UI : le sélecteur de modèles affiche les badges "Connecté/Non configuré" en temps réel
+- Aucune clé n'est jamais loggée
+
+**Configuration via l'API** :
+```bash
+# Configurer une clé Anthropic
+curl -X POST http://localhost:12000/api/config/key \
+  -H "Content-Type: application/json" \
+  -d '{"provider":"anthropic","api_key":"sk-ant-..."}'
+
+# Sélectionner le modèle par défaut
+curl -X POST http://localhost:12000/api/llm/select \
+  -H "Content-Type: application/json" \
+  -d '{"model_id":"anthropic/claude-3-5-sonnet"}'
+
+# Tester une connexion
+curl -X POST http://localhost:12000/api/llm/test \
+  -H "Content-Type: application/json" \
+  -d '{"model_id":"google/gemini-2.0-flash","prompt":"Bonjour"}'
+```
+
+**Configuration via l'UI** : le badge "ENGINE" en haut du chat ouvre le sélecteur de modèles groupé par fournisseur. Le bouton "CONFIGURER CLÉS API →" permet d'injecter une clé pour n'importe quel fournisseur.
+
+### Captures d'écran
+
+Voir `screenshots/ui-v9.3/` :
+- `01-main-chat.png` — Interface principale (chat + sidebar + sélecteur de mode)
+- `02-multi-llm-selector.png` — Sélecteur de modèles multi-fournisseurs (Anthropic, Google, OpenAI, OpenRouter, Souverain)
+- `03-api-key-config.png` — Modal de configuration des clés API multi-provider
+- `04-sovereign-lab.png` — SovereignLab (modules quantum, topologie, pipeline Aeon)
+
 ## API REST
 
 | Endpoint | Méthode | Description |
@@ -235,8 +282,12 @@ Exemples de tâches :
 | `/api/run?task=...` | POST | Exécution synchrone (ReAct) |
 | `/api/chat` | POST | Chat principal SSE (streaming `{content\|reasoning}` vers l'UI React) |
 | `/api/stats` | GET/POST | Compteur de requêtes (compat UI) |
-| `/api/config/status` | GET | État de configuration (clé API OpenRouter) |
-| `/api/config/key` | POST | Configure la clé API OpenRouter |
+| `/api/config/status` | GET | État de configuration — tous les fournisseurs LLM (Anthropic, Gemini, OpenAI, OpenRouter) |
+| `/api/config/key` | POST | Configure une clé API pour un fournisseur (body: `{provider, api_key, model_id?}`) |
+| `/api/llm/models` | GET | Catalogue des modèles LLM multi-fournisseurs |
+| `/api/llm/status` | GET | État des fournisseurs LLM (connecté/non configuré) |
+| `/api/llm/test` | POST | Teste une connexion LLM (body: `{model_id, prompt?}`) |
+| `/api/llm/select` | POST | Sélectionne le modèle LLM par défaut (body: `{model_id}`) |
 | `/api/agentic/decompose-task` | POST | Décomposition agentique d'un prompt en étapes |
 | `/api/agentic/predict-next` | POST | Suggestions prédictives contextuelles |
 | `/api/agentic/search-grounding` | POST | Recherche web pour grounding factuel |

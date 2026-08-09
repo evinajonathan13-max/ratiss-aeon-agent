@@ -43,7 +43,7 @@ import { VoiceManager } from "./components/VoiceManager";
 import { SovereignLab } from "./components/SovereignLab";
 import { InteractiveTerminal } from "./components/InteractiveTerminal";
 import { ChromeniumBrowser } from "./components/ChromeniumBrowser";
-import { MODELS } from "./models_list";
+import { MODELS, PROVIDER_ORDER } from "./models_list";
 import { SettingsBranch } from "./components/SettingsBranch";
 import { ChatInput, ChatInputHandle } from "./components/ChatInput";
 import { RatissLive } from "./components/RatissLive";
@@ -67,6 +67,20 @@ export default function App() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
   const [requestStats, setRequestStats] = useState({ count: 0, quota: 100 });
+  const [llmProviders, setLlmProviders] = useState<Record<string, { configured: boolean; available: boolean; name: string }>>({});
+  const [selectedKeyProvider, setSelectedKeyProvider] = useState<string>("anthropic");
+
+  const fetchLlmStatus = async () => {
+    try {
+      const res = await fetch("/api/llm/status");
+      if (res.ok) {
+        const data = await res.json();
+        setLlmProviders(data.providers || {});
+      }
+    } catch (err) {
+      console.warn("[RATISS] LLM status error:", err);
+    }
+  };
 
   const fetchRequestStats = async () => {
     try {
@@ -82,14 +96,15 @@ export default function App() {
 
   useEffect(() => {
     fetchRequestStats();
+    fetchLlmStatus();
   }, []);
   const [globalModelId, setGlobalModelId] = useState(() => {
-    return localStorage.getItem("ratiss_selected_model_id") || "google/gemma-4-26b-a4b-it:free";
+    return localStorage.getItem("ratiss_selected_model_id") || "anthropic/claude-3-5-sonnet";
   });
 
   useEffect(() => {
     const handleModelChanged = () => {
-      const activeId = localStorage.getItem("ratiss_selected_model_id") || "google/gemma-4-26b-a4b-it:free";
+      const activeId = localStorage.getItem("ratiss_selected_model_id") || "anthropic/claude-3-5-sonnet";
       setGlobalModelId(activeId);
     };
     window.addEventListener("ratiss-model-changed", handleModelChanged);
@@ -102,6 +117,12 @@ export default function App() {
     localStorage.setItem("ratiss_selected_model_id", newId);
     setGlobalModelId(newId);
     window.dispatchEvent(new Event("ratiss-model-changed"));
+    // Notifier le backend du modèle sélectionné
+    fetch("/api/llm/select", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model_id: newId }),
+    }).catch(() => {});
   };
 
   const currentModel = MODELS.find(m => m.id === globalModelId) || MODELS[0];
@@ -409,6 +430,9 @@ export default function App() {
       const res = await fetch("/api/config/status");
       const data = await res.json();
       setIsConfigured(data.configured);
+      if (data.providers) {
+        setLlmProviders(data.providers);
+      }
     } catch (e) {
       setIsConfigured(false);
     }
@@ -736,12 +760,14 @@ export default function App() {
       const response = await fetch("/api/config/key", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: configApiKey })
+        body: JSON.stringify({ provider: selectedKeyProvider, api_key: configApiKey })
       });
       const data = await response.json();
-      if (data.status === "success") {
+      if (data.configured || data.status === "success") {
         setSaveSuccess(true);
         setIsConfigured(true);
+        if (data.providers) setLlmProviders(data.providers);
+        fetchLlmStatus();
         setTimeout(() => {
           setIsConfigModalOpen(false);
           setConfigApiKey("");
@@ -1073,9 +1099,43 @@ export default function App() {
                   </div>
 
                   <div className="space-y-6">
+                    {/* Sélecteur de fournisseur LLM */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-mono text-slate-600 uppercase tracking-widest ml-1">Fournisseur LLM</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { key: "anthropic", label: "Anthropic (Claude)", color: "orange" },
+                          { key: "google", label: "Google (Gemini)", color: "blue" },
+                          { key: "openai", label: "OpenAI (GPT)", color: "emerald" },
+                          { key: "openrouter", label: "OpenRouter (Nemotron)", color: "purple" },
+                        ].map((prov) => {
+                          const isActive = selectedKeyProvider === prov.key;
+                          const isConn = llmProviders[prov.key]?.configured;
+                          return (
+                            <button
+                              key={prov.key}
+                              onClick={() => setSelectedKeyProvider(prov.key)}
+                              className={`relative flex items-center gap-2 px-3 py-2.5 rounded-xl border text-[11px] font-medium transition-all ${
+                                isActive
+                                  ? 'bg-blue-500/10 border-blue-500/40 text-white'
+                                  : 'bg-white/[0.02] border-white/5 text-slate-400 hover:bg-white/[0.05]'
+                              }`}
+                            >
+                              {prov.label}
+                              {isConn && (
+                                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_6px_#22c55e]" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
                       <div className="flex items-center justify-between ml-1">
-                        <label className="text-[10px] font-mono text-slate-600 uppercase tracking-widest">Clé API Qwen</label>
+                        <label className="text-[10px] font-mono text-slate-600 uppercase tracking-widest">
+                          Clé API {selectedKeyProvider === 'anthropic' ? 'Anthropic' : selectedKeyProvider === 'google' ? 'Gemini' : selectedKeyProvider === 'openai' ? 'OpenAI' : 'OpenRouter'}
+                        </label>
                         <button 
                           onClick={() => setShowApiKey(!showApiKey)}
                           className="text-[10px] font-mono text-blue-500 hover:text-blue-400 transition-colors uppercase tracking-widest"
@@ -1088,7 +1148,7 @@ export default function App() {
                           type={showApiKey ? "text" : "password"}
                           value={configApiKey}
                           onChange={(e) => setConfigApiKey(e.target.value)}
-                          placeholder="sk-................................"
+                          placeholder={selectedKeyProvider === 'anthropic' ? 'sk-ant-...' : selectedKeyProvider === 'google' ? 'AIza...' : selectedKeyProvider === 'openai' ? 'sk-...' : 'sk-or-...'}
                           className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white placeholder-slate-800 focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.07] transition-all"
                         />
                         <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
@@ -1237,8 +1297,8 @@ export default function App() {
               >
                 <div className="flex items-center justify-between mb-6 px-2">
                   <div className="flex flex-col">
-                    <h2 className="text-lg font-bold text-white tracking-tight">Modèle LLM Piloté (OpenRouter)</h2>
-                    <p className="text-[10px] font-mono text-cyan-400 uppercase tracking-[0.2em] mt-1">Sélecteur de Moteur de Langue sous Orchestration RATISS</p>
+                    <h2 className="text-lg font-bold text-white tracking-tight">Modèle LLM Multi-Fournisseurs</h2>
+                    <p className="text-[10px] font-mono text-cyan-400 uppercase tracking-[0.2em] mt-1">Anthropic · Gemini · OpenAI · OpenRouter · Souverain</p>
                   </div>
                   <button 
                     onClick={() => setIsOpenRouterModelMenuOpen(false)}
@@ -1249,52 +1309,88 @@ export default function App() {
                 </div>
 
                 <div className="grid gap-2.5 max-h-[60vh] overflow-y-auto pr-1">
-                  {MODELS.map((m, idx) => {
-                    const isActive = globalModelId === m.id;
-                    return (
-                      <motion.button 
-                        key={m.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.04 }}
-                        onClick={() => {
-                          updateGlobalModelId(m.id);
-                          setIsOpenRouterModelMenuOpen(false);
-                        }}
-                        className={`group relative flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all duration-300 ${
-                          isActive 
-                            ? 'bg-cyan-500/10 border-cyan-500/40 shadow-[0_0_20px_rgba(6,182,212,0.15)]' 
-                            : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'
-                        }`}
-                      >
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors text-xs font-bold font-mono ${
-                          isActive ? 'bg-cyan-500 text-black font-black shadow-lg' : 'bg-white/5 text-slate-400 group-hover:text-slate-200'
-                        }`}>
-                          {m.provider.substring(0, 3).toUpperCase()}
+                  {(() => {
+                    const providerKeyMap: Record<string, string> = {
+                      "Anthropic": "anthropic", "Google": "google", "OpenAI": "openai",
+                      "OpenRouter": "openrouter", "Souverain": "local",
+                    };
+                    const groups: Record<string, typeof MODELS> = {};
+                    MODELS.forEach(m => {
+                      if (!groups[m.provider]) groups[m.provider] = [];
+                      groups[m.provider].push(m);
+                    });
+                    let flatIdx = 0;
+                    return PROVIDER_ORDER
+                      .filter(p => groups[p])
+                      .map(providerName => (
+                        <div key={providerName}>
+                          <div className="flex items-center gap-2 px-2 pt-3 pb-1">
+                            <span className="text-[9px] font-mono text-slate-600 uppercase tracking-[0.2em] font-bold">{providerName}</span>
+                            {(() => {
+                              const pk = providerKeyMap[providerName];
+                              const isConn = pk && pk !== 'local' && llmProviders[pk]?.configured;
+                              return isConn ? (
+                                <span className="text-[9px] font-mono text-green-500 flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_6px_#22c55e]" /> Connecté
+                                </span>
+                              ) : pk && pk !== 'local' ? (
+                                <span className="text-[9px] font-mono text-slate-700">Non configuré</span>
+                              ) : null;
+                            })()}
+                          </div>
+                          {groups[providerName].map((m) => {
+                            const idx = flatIdx++;
+                            const isActive = globalModelId === m.id;
+                            return (
+                              <motion.button 
+                                key={m.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.03 }}
+                                onClick={() => {
+                                  updateGlobalModelId(m.id);
+                                  setIsOpenRouterModelMenuOpen(false);
+                                }}
+                                className={`group relative flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all duration-300 ${
+                                  isActive 
+                                    ? 'bg-cyan-500/10 border-cyan-500/40 shadow-[0_0_20px_rgba(6,182,212,0.15)]' 
+                                    : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'
+                                }`}
+                              >
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors text-xs font-bold font-mono ${
+                                  isActive ? 'bg-cyan-500 text-black font-black shadow-lg' : 'bg-white/5 text-slate-400 group-hover:text-slate-200'
+                                }`}>
+                                  {m.provider.substring(0, 3).toUpperCase()}
+                                </div>
+                                <div className="flex-1 text-left">
+                                  <div className={`text-[12px] font-bold tracking-tight ${isActive ? 'text-cyan-300' : 'text-slate-300 group-hover:text-white'}`}>
+                                    {m.name}
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 font-light mt-0.5">
+                                    {m.desc}
+                                  </div>
+                                </div>
+                                {isActive && (
+                                  <div className="pr-2">
+                                    <Check className="w-4 h-4 text-cyan-400" />
+                                  </div>
+                                )}
+                              </motion.button>
+                            );
+                          })}
                         </div>
-
-                        <div className="flex-1 text-left">
-                          <div className={`text-[12px] font-bold tracking-tight ${isActive ? 'text-cyan-300' : 'text-slate-300 group-hover:text-white'}`}>
-                            {m.name}
-                          </div>
-                          <div className="text-[10px] text-slate-500 font-light mt-0.5">
-                            {m.desc}
-                          </div>
-                        </div>
-
-                        {isActive && (
-                          <div className="pr-2">
-                            <Check className="w-4 h-4 text-cyan-400" />
-                          </div>
-                        )}
-                      </motion.button>
-                    );
-                  })}
-                </div>
+                      ));
+                    })()}
+                  </div>
 
                 <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between text-[9px] font-mono text-slate-500 uppercase tracking-widest font-bold px-2">
                   <span>ORCHESTRATION SOUVERAINE RATISS</span>
-                  <span className="text-cyan-400">OPENROUTER BACKEND</span>
+                  <button
+                    onClick={() => { setIsOpenRouterModelMenuOpen(false); setIsConfigModalOpen(true); }}
+                    className="text-cyan-400 hover:text-cyan-300 transition-colors"
+                  >
+                    CONFIGURER CLÉS API →
+                  </button>
                 </div>
               </motion.div>
             </div>
