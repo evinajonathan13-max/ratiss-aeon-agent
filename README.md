@@ -55,10 +55,12 @@ RATISS intègre désormais les mêmes capacités qu'OpenManus/Manus IA :
     │   ├── system/             #   Memory Guard (7500 Mo)
     │   └── zk/                 #   Prover ZK-STARK RISC Zero
     ├── orchestrator/           # Agent agentique
-    │   ├── agent.py            #   Boucle Plan → Execute → Certify → Artifact
+    │   ├── agent.py            #   Boucle Plan → Execute → Certify → Artifact + refine()
     │   ├── nemotron_client.py  #   Client OpenRouter (Nemotron 3 Ultra)
     │   ├── skill_manager.py    #   Registre des compétences noyau
-    │   └── cascade.py          #   Émetteur d'événements WebSocket
+    │   ├── cascade.py          #   Émetteur d'événements WebSocket
+    │   ├── auto_improve.py     #   Couche RLM : analyse trajectoire + leçons + validation ZK
+    │   └── harness_manager.py  #   Continual Harness : état persistant + CRUD + versioning
     ├── security/               # Sécurité souveraine
     │   ├── session_manager.py  #   Sessions SQLite + auth PBKDF2
     │   ├── token_hasher.py     #   PBKDF2-HMAC-SHA256 (600K itérations)
@@ -69,12 +71,97 @@ RATISS intègre désormais les mêmes capacités qu'OpenManus/Manus IA :
     │   ├── import_skill.py     #   Importe/teste une compétence GitHub
     │   ├── align_agent.py      #   Alignement + vérification
     │   └── deploy.sh           #   Déploiement (local/docker/hf/vercel)
+    ├── tests/                  # Tests (auto-amélioration, pipeline)
+    ├── harness/                # État du Continual Harness (généré à l'exécution)
     ├── data/pdb/               # Structures PDB locales (4MZI, 4MZR)
     ├── config/                 # allowed_imports.txt, agent_aligned.json
-    ├── tests/                  # Tests pipeline
     ├── Dockerfile              # HF Spaces / VPS (port 7860)
     ├── requirements.txt        # Dépendances minimales (frugal)
     └── .env.example            # Variables d'environnement (sans secrets)
+
+## Nouveautés — Couche d'auto-amélioration (RLM / Continual Harness) (v9.2)
+
+RATISS intègre désormais une **boucle d'auto-amélioration par validation**, inspirée
+des architectures **Recursive Language Model (RLM)** et **Continual Harness** de
+Prime Agent. À partir d'une tâche complexe **validée** (certification ZK-STARK), l'agent
+analyse sa propre trajectoire, en extrait des « leçons » et les réinjecte dans son
+harnais (prompts, compétences, mémoire, sous-agents) pour améliorer ses performances
+futures.
+
+### Architecture
+
+```
+[Exécution d'une tâche complexe]
+        │
+        ▼
+[Validation du résultat (ZK-STARK, invariants physiques)]
+        │
+        ▼ (si validé)
+[Analyse de la trajectoire : planification, étapes, raisonnements, artéfacts]
+        │
+        ▼
+[Extraction des « leçons » : patterns, heuristiques, méthodes efficaces, erreurs évitées]
+        │
+        ▼
+[Validation ZK des leçons (invariants physiques préservés)]
+        │
+        ▼
+[Mise à jour du « Harness » : prompts, compétences, mémoire, sous-agents (CRUD + versioning)]
+        │
+        ▼
+[Amélioration des performances futures]
+```
+
+### Modules
+
+| Module | Rôle |
+|--------|------|
+| `orchestrator/auto_improve.py` | Analyse la trajectoire (plan, étapes, logs, résultats), extrait les patterns récurrents et génère des leçons structurées (JSON). Validation ZK des leçons. |
+| `orchestrator/harness_manager.py` | État persistant et versionné du harnais (prompts, compétences, mémoire, sous-agents). CRUD ciblé + snapshots horodatés + rollback. |
+| Commande `/refine` | Déclenche l'analyse de la trajectoire courante, propose des améliorations, et (après validation utilisateur) applique les mises à jour + génère un rapport PDF. |
+
+### Types de leçons extraites
+
+| Type | Cible | Description |
+|------|-------|-------------|
+| `pattern` | prompt | Séquence d'actions validée (à réutiliser pour ce domaine) |
+| `heuristic` | skill | Règle générale dérivée (budget temps, paramètres par défaut) |
+| `pitfall` | prompt/subagent | Erreur/piège rencontré (à éviter) |
+| `memory` | memory | Fait observable stable (Betti 4MZI, E₀ t-J, PDB disponible) |
+
+### Intégration avec les compétences existantes
+
+- **`zk_proof`** : certifie que les leçons proposées ne violent pas les invariants physiques (énergie < 0, entropie ≥ 0, dimensions réseau valides). Aucune mise à jour n'est appliquée si la preuve ZK est invalide.
+- **`generate_pdf`** : produit un rapport d'auto-amélioration (versioning des leçons appliquées, trajectoire analysée, validation ZK).
+- **`file_editor`** : les fichiers de configuration du harnais (`harness/harness_state.json`, snapshots) sont gérés via le `HarnessManager`.
+
+### Commande `/refine`
+
+Dans le chat, après avoir exécuté une tâche complexe :
+
+```
+/refine          → analyse la trajectoire, affiche les leçons proposées (bannière Accepter/Rejeter)
+/refine apply    → analyse ET applique les mises à jour au harnais + génère le rapport PDF
+/harness         → affiche l'état courant du harnais (version, mémoire, prompts, trajectoires)
+```
+
+L'UI affiche une **bannière de proposition** avec chaque leçon (type, cible, confiance,
+contenu) et des boutons **✓ Appliquer au harnais** / **✕ Rejeter**. L'application
+incrémente la version du harnais et crée un snapshot horodaté (rollback possible).
+
+### Persistance (`harness/`)
+
+```
+harness/
+├── harness_state.json     # état courant (versionné)
+├── lessons/               # archive des leçons appliquées (JSON, une par fichier)
+├── trajectories/          # trajectoires de tâches analysables par /refine
+└── versions/              # snapshots horodatés (v0000_*.json, v0001_*.json, ...)
+```
+
+Souveraineté : l'analyse est **déterministe** (heuristiques locales, aucun appel LLM
+externe requis). Si Nemotron/OpenRouter est disponible, un enrichissement optionnel
+peut être branché, mais le chemin par défaut reste local.
 
 ## Démarrage rapide
 
@@ -120,6 +207,9 @@ Exemples de tâches :
 | `/api/python` | POST | Exécution Python sandbox |
 | `/api/search` | POST | Recherche web (Tavily/DuckDuckGo) |
 | `/api/file` | POST | Éditeur de fichiers (view, create, str_replace) |
+| `/api/refine` | POST | Auto-amélioration : analyse une trajectoire, renvoie leçons + propositions (body: `{"apply": true}` pour appliquer) |
+| `/api/harness` | GET | État du harnais d'auto-amélioration (version, mémoire, prompts, trajectoires) |
+| `/api/harness/rollback` | POST | Restaure une version antérieure du harnais (body: `{"version": N}`) |
 | `/api/preview/{filename}` | GET | Sert un artéfact (PDF, PNG, HTML) |
 | `/api/artifacts/{session}` | GET | Liste des artéfacts |
 | `/ws` | WebSocket | Canal multiplexé temps réel (chat + terminal + browser + python) |

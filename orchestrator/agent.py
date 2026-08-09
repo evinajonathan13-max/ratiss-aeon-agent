@@ -29,6 +29,7 @@ from kernel.connectors.registry import get_connectors_status
 from orchestrator.nemotron_client import NemotronClient
 from orchestrator.skill_manager import execute_step, list_skills
 from orchestrator.cascade import CascadeEmitter
+from orchestrator.harness_manager import get_harness
 
 logger = logging.getLogger("ratiss.agent")
 
@@ -44,6 +45,10 @@ class RatissAgent:
         self.workspace = WORKSPACE_DIR / self.cascade.session_id
         self.workspace.mkdir(parents=True, exist_ok=True)
         self.ctx: dict[str, Any] = {"last_result": {}, "workspace": str(self.workspace), "workspace_dir": self.workspace}
+        # Auto-amélioration : capture de la trajectoire (plan + summary) pour /refine
+        self.last_plan: dict[str, Any] = {}
+        self.last_summary: dict[str, Any] = {}
+        self.harness = get_harness()
 
     def _cpu_pct(self) -> float:
         try:
@@ -76,6 +81,7 @@ class RatissAgent:
         # 1. PLAN
         self.cascade.log("Planification en cours...", stream="nemotron")
         plan = self.nemotron.plan(task)
+        self.last_plan = plan
         self.cascade.planning(plan)
         self.cascade.log(
             f"Plan reçu ({plan.get('planner')}): {len(plan.get('steps', []))} étapes, domaine={plan.get('domain')}",
@@ -215,10 +221,151 @@ class RatissAgent:
             },
         }
         self._save_artifact("result.json", summary)
+        # Auto-amélioration : persister la trajectoire pour /refine
+        self.last_summary = summary
+        try:
+            traj_path = self.harness.save_trajectory(summary, self.last_plan)
+            self.cascade.log(f"Trajectoire archivée: {traj_path.name}", stream="ratiss")
+        except Exception as e:
+            logger.warning(f"[AGENT] Archive trajectoire échouée: {e}")
         self.cascade.done(summary)
         self.cascade.status("done", f"Pipeline terminé en {summary['execution_time_sec']}s")
         self._emit_telemetry()
         return summary
+
+    # ── Auto-amélioration (RLM / Continual Harness) ─────────────────────────
+
+    def refine(self, apply: bool = False) -> dict[str, Any]:
+        """Déclenche l'analyse de la trajectoire de la session courante.
+
+        Pipeline : analyse → leçons → validation ZK → propositions de mises à jour.
+        Si ``apply=True`` (validation utilisateur), applique les mises à jour au harnais
+        et génère un rapport PDF d'auto-amélioration.
+
+        Returns:
+            Rapport de raffinage (analysis, lessons, zk_validation, proposed_updates,
+            [applied], [report_pdf]).
+        """
+        from orchestrator.auto_improve import refine as _refine
+
+        self.cascade.status("refining", "Auto-amélioration de la trajectoire")
+        self.cascade.log("[Refine] Analyse de la trajectoire en cours...", stream="ratiss")
+
+        if not self.last_summary:
+            msg = "Aucune trajectoire à analyser. Exécutez d'abord une tâche."
+            self.cascade.log(f"[Refine] {msg}", stream="ratiss")
+            return {"status": "NO_TRAJECTORY", "message": msg}
+
+        report = _refine(self.last_summary, self.last_plan)
+        report["status"] = "REFINED"
+
+        self.cascade.log(
+            f"[Refine] {len(report['lessons'])} leçon(s) extraite(s). "
+            f"ZK valide: {report['zk_validation'].get('valid')}. "
+            f"{len(report['proposed_updates'])} mise(s) à jour proposée(s).",
+            stream="ratiss",
+        )
+        self.cascade.refine_proposal(report)
+
+        if apply:
+            applied = self.apply_refine(report)
+            report["applied"] = applied
+            # Rapport PDF d'auto-amélioration (versioning des leçons)
+            report["report_pdf"] = self._generate_refine_pdf(report)
+
+        self.cascade.status("done", "Auto-amélioration terminée")
+        return report
+
+    def apply_refine(self, report: dict[str, Any]) -> dict[str, Any]:
+        """Applique les mises à jour proposées au harnais (après validation)."""
+        updates = report.get("proposed_updates", [])
+        if not updates:
+            self.cascade.log("[Refine] Aucune mise à jour à appliquer.", stream="ratiss")
+            return {"status": "NO_UPDATES"}
+
+        # Archiver chaque leçon
+        for lesson in report.get("lessons", []):
+            try:
+                self.harness.archive_lesson(lesson)
+            except Exception as e:
+                logger.warning(f"[AGENT] Archive leçon échouée: {e}")
+
+        result = self.harness.apply_updates(updates, reason="refine_command")
+        self.cascade.log(
+            f"[Refine] Harnais mis à jour v{result.get('version')} "
+            f"({len(updates)} opérations). Snapshot: {result.get('snapshot','')}",
+            stream="ratiss",
+        )
+        self.cascade.refine_applied(result)
+        return result
+
+    def _generate_refine_pdf(self, report: dict[str, Any]) -> dict[str, Any]:
+        """Génère un rapport PDF d'auto-amélioration (versioning des leçons)."""
+        from tools.content_generator import generate_pdf
+
+        analysis = report.get("analysis", {})
+        metrics = analysis.get("metrics", {})
+        zk = report.get("zk_validation", {})
+        applied = report.get("applied", {})
+
+        sections = [
+            {
+                "heading": "1. Trajectoire analysée",
+                "content": (
+                    f"Tâche: {analysis.get('task','')}\n"
+                    f"Domaine: {analysis.get('domain','')}  |  Planificateur: {analysis.get('planner','')}\n"
+                    f"Étapes exécutées: {metrics.get('steps_executed',0)} "
+                    f"(succès: {metrics.get('steps_success',0)}, échecs: {metrics.get('steps_failed',0)})\n"
+                    f"Taux de succès: {metrics.get('success_rate',0)}\n"
+                    f"Temps d'exécution: {metrics.get('execution_time_sec',0)}s "
+                    f"(moy. {metrics.get('avg_time_per_step_sec',0)}s/étape)\n"
+                    f"Certification ZK: {'VALIDE' if metrics.get('zk_validated') else 'NON VALIDEE'}\n"
+                    f"Blocage ReAct détecté: {metrics.get('stuck_detected', False)}"
+                ),
+                "kind": "text",
+            },
+            {
+                "heading": "2. Validation ZK-STARK des leçons",
+                "content": (
+                    f"Valide: {zk.get('valid')}\n"
+                    f"Hash des leçons: {zk.get('lessons_hash','')}\n"
+                    f"Preuve: {zk.get('proof_hash','')}\n"
+                    f"Temps de vérification: {zk.get('verification_time_ms','')} ms\n"
+                    f"Engagement public: {zk.get('public_commitment','')}"
+                ),
+                "kind": "code",
+            },
+            {
+                "heading": "3. Leçons extraites",
+                "content": [
+                    {
+                        "id": l.get("id"), "type": l.get("type"), "target": l.get("target"),
+                        "title": l.get("title"), "confidence": l.get("confidence"),
+                        "content": l.get("content"),
+                    }
+                    for l in report.get("lessons", [])
+                ],
+                "kind": "table",
+            },
+            {
+                "heading": "4. Mises à jour appliquées au harnais",
+                "content": (
+                    f"Version du harnais: {applied.get('version','N/A')}\n"
+                    f"Statut: {applied.get('status','N/A')}\n"
+                    f"Snapshot: {applied.get('snapshot','N/A')}\n"
+                    f"Opérations: {len(applied.get('results',[]))}"
+                ),
+                "kind": "text",
+            },
+        ]
+        try:
+            return generate_pdf(
+                "Rapport d'auto-amelioration RATISS (RLM/Continual Harness)",
+                sections, output_dir=self.workspace,
+            )
+        except Exception as e:
+            logger.warning(f"[AGENT] Rapport PDF refine échoué: {e}")
+            return {"status": "PDF_ERROR", "error": str(e)}
 
 
 def get_skills_overview() -> list[dict[str, Any]]:

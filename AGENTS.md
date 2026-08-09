@@ -5,11 +5,13 @@
 - **Objectif** : Agent scientifique autonome souverain type Manus IA / OpenManus (quantum + topology + bio + crypto + browser + terminal + python + web + contenu) pour incubateurs/investisseurs
 - **Dépôt** : `ratiss-aeon-agent` (GitHub: evinajonathan13-max), branche `main`
 - **Source** : extension de `ratiss-kkl` (PR #1 merged)
-- **Version** : 9.1.0 (kernel ratiss_v9_aeon_prime) — Manus IA tools ajoutés
+- **Version** : 9.2.0 (kernel ratiss_v9_aeon_prime) — couche d'auto-amélioration RLM/Continual Harness ajoutée
 
-## Architecture (23 skills)
+## Architecture (23 skills + couche RLM)
 - `kernel/` — Noyau scientifique RATISS V9 (main.py, bridge.py, solvers/, connectors/, core/, system/, zk/)
 - `orchestrator/` — Agent agentique avec **boucle ReAct** (agent.py, nemotron_client.py, skill_manager.py, cascade.py)
+  - `auto_improve.py` — **NOUVEAU v9.2** Couche RLM : analyze_trajectory, extract_lessons (pattern/heuristic/pitfall/memory), validate_lessons_with_zk, pipeline refine()
+  - `harness_manager.py` — **NOUVEAU v9.2** Continual Harness : état persistant versionné (prompts/skills/memory/subagents), CRUD, snapshots + rollback, archive leçons & trajectoires
 - `tools/` — Manus IA tools :
   - `terminal_executor.py` — Shell sécurisé (allowlist, streaming, blocage rm -rf /)
   - `web_client.py` — arXiv, PubMed, ChEMBL, PDB, AlphaFold, fetch URL
@@ -36,6 +38,19 @@ L'agent utilise désormais une boucle **Think → Act → Observe** au lieu de p
 - Act : exécute l'action (terminal, python, browser, scientifique...)
 - Observe : analyse le résultat et adapte
 - Détection de blocage : si la même action est répétée 3 fois, arrêt automatique
+
+## Couche d'auto-amélioration RLM / Continual Harness (v9.2)
+Boucle : Exécution → Validation ZK → Analyse trajectoire → Leçons → Validation ZK des leçons → Mise à jour du harnais.
+- `agent.last_summary` / `agent.last_plan` capturés à la fin de `run()` + trajectoire persistée dans `harness/trajectories/`.
+- `agent.refine(apply=False)` : analyse la trajectoire courante, propose des leçons + mises à jour (sans appliquer). Émet `refine_proposal`.
+- `agent.refine(apply=True)` : applique les mises à jour au harnais (CRUD + versioning + snapshot) + génère un rapport PDF d'auto-amélioration.
+- Commande chat `/refine` (dry-run) et `/refine apply` (applique) ; `/harness` affiche l'état.
+- Endpoints REST : `POST /api/refine` (body `{"apply": true}`), `GET /api/harness`, `POST /api/harness/rollback`.
+- Événements WebSocket : `refine_start`, `refine_proposal`, `refine_applied`, `refine_done`, `harness_state`.
+- UI : bannière de proposition avec leçons (type/cible/confiance) + boutons Appliquer/Rejeter.
+- Types de leçons : `pattern` (prompt), `heuristic` (skill), `pitfall` (prompt/subagent), `memory` (memory).
+- Validation ZK : `validate_lessons_with_zk` génère une preuve ZK-STARK sur un payload d'invariants (énergie<0, entropie≥0, réseau valide) + hash des leçons ; aucune mise à jour si invalide.
+- Souveraineté : analyse déterministe (heuristiques locales), aucun LLM externe requis.
 
 ## Commandes utiles
 ```bash

@@ -195,6 +195,67 @@ async def file_action(body: dict = None):
     return r
 
 
+@app.post("/api/refine")
+async def refine_sync(body: dict = None):
+    """Auto-amélioration synchrone : analyse une trajectoire (fichier ou summary JSON)
+    et renvoie les leçons + propositions de mise à jour du harnais.
+
+    Body:
+        {"trajectory_file": "..."}  -> analyse une trajectoire archivée
+        {"summary": {...}, "plan": {...}}  -> analyse directe
+        {"apply": true}  -> applique les mises à jour au harnais
+    """
+    from orchestrator.auto_improve import refine as _refine
+    from orchestrator.harness_manager import get_harness
+
+    body = body or {}
+    apply = bool(body.get("apply", False))
+    harness = get_harness()
+
+    summary = body.get("summary")
+    plan = body.get("plan", {})
+    if not summary and body.get("trajectory_file"):
+        traj = harness.load_trajectory(body["trajectory_file"])
+        if not traj:
+            return JSONResponse({"error": "trajectory_not_found"}, status_code=404)
+        summary = traj.get("summary", {})
+        plan = traj.get("plan", {})
+
+    if not summary:
+        # Dernière trajectoire archivée par défaut
+        trajs = harness.list_trajectories()
+        if not trajs:
+            return JSONResponse({"error": "no_trajectory", "message": "Aucune trajectoire disponible."}, status_code=400)
+        traj = harness.load_trajectory(trajs[0]["file"])
+        summary = traj.get("summary", {})
+        plan = traj.get("plan", {})
+
+    report = _refine(summary, plan)
+    if apply:
+        for lesson in report.get("lessons", []):
+            harness.archive_lesson(lesson)
+        applied = harness.apply_updates(report.get("proposed_updates", []), reason="api_refine")
+        report["applied"] = applied
+    return report
+
+
+@app.get("/api/harness")
+async def harness_state():
+    """État courant du harnais d'auto-amélioration + trajectoires archivées."""
+    from orchestrator.harness_manager import get_harness
+    h = get_harness()
+    return {"state": h.state(), "trajectories": h.list_trajectories()}
+
+
+@app.post("/api/harness/rollback")
+async def harness_rollback(body: dict = None):
+    """Restaure une version antérieure du harnais."""
+    from orchestrator.harness_manager import get_harness
+    body = body or {}
+    version = int(body.get("version", 0))
+    return get_harness().rollback(version)
+
+
 @app.get("/api/preview/{filename:path}")
 async def preview_artifact(filename: str):
     """Sert un artéfact pour preview dans l'UI (PDF, PNG, HTML, SVG)."""
@@ -228,6 +289,7 @@ async def websocket_endpoint(ws: WebSocket):
         await ws.send_json({"type": "connectors", "status": get_connectors_status()})
         await ws.send_json({"type": "skills", "skills": get_skills_overview()})
 
+        agent_ref: dict = {"agent": None}
         while True:
             data = await ws.receive_text()
             try:
@@ -242,8 +304,20 @@ async def websocket_endpoint(ws: WebSocket):
                 if not task:
                     await ws.send_json({"type": "error", "message": "empty_task"})
                     continue
+                # Commande /refine : auto-amélioration de la trajectoire courante
+                if task.startswith("/refine"):
+                    await _handle_refine(ws, emitter, msg, agent_ref)
+                    continue
+                # Commande /harness : consultation de l'état du harnais
+                if task.startswith("/harness"):
+                    from orchestrator.harness_manager import get_harness
+                    h = get_harness()
+                    await ws.send_json({"type": "harness_state", "state": h.state(),
+                                        "trajectories": h.list_trajectories()})
+                    continue
                 # Lance l'agent dans un thread (synchrone) pour ne pas bloquer la boucle
                 agent = RatissAgent(emit_fn=emitter)
+                agent_ref["agent"] = agent
                 await ws.send_json({"type": "session_start", "session_id": agent.cascade.session_id})
                 try:
                     summary = await asyncio.to_thread(agent.run, task)
@@ -309,6 +383,26 @@ async def websocket_endpoint(ws: WebSocket):
         logger.exception(f"[WS] Erreur: {e}")
     finally:
         _active_ws.discard(ws)
+
+
+async def _handle_refine(ws: WebSocket, emitter, msg: dict, agent_ref: dict) -> None:
+    """Traite la commande /refine : analyse la trajectoire courante et propose
+    des améliorations au harnais. Si l'utilisateur a ajouté ' apply' (ou ' accept'),
+    les mises à jour sont appliquées immédiatement.
+    """
+    task = msg.get("task", "").strip()
+    apply = any(kw in task.lower() for kw in ("apply", "accept", "appliquer", "valider"))
+    agent: RatissAgent | None = agent_ref.get("agent")
+    await ws.send_json({"type": "refine_start", "apply": apply})
+    if agent is None:
+        await ws.send_json({"type": "error", "message": "Aucune session active. Exécutez d'abord une tâche."})
+        return
+    try:
+        report = await asyncio.to_thread(agent.refine, apply)
+        await ws.send_json({"type": "refine_done", "report": report})
+    except Exception as e:
+        logger.exception("[WS] Erreur /refine")
+        await ws.send_json({"type": "error", "message": str(e)})
 
 
 # ── Tâche de fond : télémétrie périodique ─────────────────────────────────────
