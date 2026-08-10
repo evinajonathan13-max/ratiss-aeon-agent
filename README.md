@@ -31,20 +31,20 @@ Un agent agentique souverain combinant **physique quantique** (Lanczos ED), **to
 
 | | Section | |
 |:---:|---|:---:|
-| 📸 | [Captures d'écran](#captures-décran) | |
-| 🔭 | [Vue d'ensemble](#vue-densemble) | |
-| ✨ | [Nouveautés — v9.3](#nouveautés--v93) | |
-| 🏛️ | [Architecture](#architecture) | |
-| 🚀 | [Démarrage rapide](#démarrage-rapide) | |
-| 🖥️ | [Interface web — UI React immersive (v9.3)](#interface-web--ui-react-immersive-v93) | |
-| 🔌 | [Intégrations externes — Chaîne de recherche ouverte](#intégrations-externes--chaîne-de-recherche-ouverte) | |
-| 📁 | [Import de fichiers universel](#import-de-fichiers-universel) | |
-| 🧠 | [Routeur LLM multi-fournisseurs](#routeur-llm-multi-fournisseurs) | |
-| 🔄 | [Couche d'auto-amélioration (RLM / Continual Harness) — v9.2](#couche-dauto-amélioration-rlm--continual-harness--v92) | |
-| 🛠️ | [Compétences — 23 actions](#compétences--23-actions) | |
-| 📡 | [API REST](#api-rest) | |
-| 🔒 | [Sécurité & souveraineté](#sécurité--souveraineté) | |
-| 📦 | [Déploiement & dépendances](#déploiement--dépendances) | |
+| 📸 | [Captures d'écran](#-captures-décran) | |
+| 🔭 | [Vue d'ensemble](#-vue-densemble) | |
+| ✨ | [Nouveautés — v9.3](#-nouveautés--v93) | |
+| 🏛️ | [Architecture](#-architecture) | |
+| 🚀 | [Démarrage rapide](#-démarrage-rapide) | |
+| 🖥️ | [Interface web — UI React immersive (v9.3)](#-interface-web--ui-react-immersive-v93) | |
+| 🔌 | [Intégrations externes — Chaîne de recherche ouverte](#-intégrations-externes--chaîne-de-recherche-ouverte) | |
+| 📁 | [Import de fichiers universel](#-import-de-fichiers-universel) | |
+| 🧠 | [Routeur LLM multi-fournisseurs](#-routeur-llm-multi-fournisseurs) | |
+| 🔄 | [Couche d'auto-amélioration (RLM / Continual Harness) — v9.2](#-couche-dauto-amélioration-rlm--continual-harness--v92) | |
+| 🛠️ | [Compétences — 23 actions](#-compétences--23-actions) | |
+| 📡 | [API REST](#-api-rest) | |
+| 🔒 | [Sécurité & souveraineté](#-sécurité--souveraineté) | |
+| 📦 | [Déploiement & dépendances](#-déploiement--dépendances) | |
 
 ---
 
