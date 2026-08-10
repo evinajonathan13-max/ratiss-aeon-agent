@@ -58,7 +58,7 @@ Un agent agentique souverain combinant **physique quantique** (Lanczos ED), **to
 <a id="nouveau"></a>
 ## 🆕 Ce qui est nouveau
 
-### 🛡️ v9.5 — Module de scan de vulnérabilités (audit défensif légal)
+### 🛡️ v9.5 — Module de scan de vulnérabilités + topologie transdisciplinaire
 
 Nouveau module **vuln_scanner** : un scanner de vulnérabilités **bridé architecturalement** pour l'audit défensif et légal. Inspiré des outils d'audit professionnels, il permet de scanner un système (réseau, web, code source, configuration) et de produire un rapport de vulnérabilités — mais ne peut **JAMAIS** exploiter, brute-forcer, ou installer de backdoor.
 
@@ -66,8 +66,9 @@ Nouveau module **vuln_scanner** : un scanner de vulnérabilités **bridé archit
 - **Bridage architectural** : 40+ actions offensives interdites par construction (`exploit`, `brute_force`, `reverse_shell`, `metasploit`, `backdoor`, `ddos`...)
 - **Scans** : réseau (ports, services, bannières), web (headers, TLS, fuite d'infos), SAST (SQLi, XSS, secrets codés en dur, désérialisation, crypto faible), config (fichiers sensibles, permissions)
 - **Rapport** : sévérités CRITICAL/HIGH/MEDIUM/LOW, alignement OWASP Top 10 2021, recommandations de remédiation
+- **🧬 Topologie transdisciplinaire** : la signature RATISS — homologie persistante (β₀, β₁, β₂) appliquée à la surface d'attaque. Les cycles (β₁) révèlent les **chaînes d'attaque (kill chains)**. Score de risque topologique 0-100. Rapports chiffrés Fernet (clé = mot de passe opérateur)
 - **Cas d'usage** : consultation cybersécurité entreprise, audit pré-contractuel, souveraineté africaine
-- **Tests** : 69 tests dédiés (88 tests au total, 0 échec)
+- **Tests** : 88 tests (bridage, auth, SAST, config, réseau, topologie, chiffrement) + 19 transdisc = 107 tests au total, 0 échec
 
 Voir [la section dédiée](#vuln-scanner).
 
@@ -775,6 +776,21 @@ Toute tentative d'appeler une action offensive lève `RuntimeError("ACTION_OFFEN
 > ⚠️ **Cadre légal** : Au Cameroun, la loi n° 2010/013 sur la cybersécurité (Articles 78-80) et la Convention de Budapest sur la cybercriminalité encadrent le scan de systèmes. Scannez uniquement les systèmes dont vous êtes propriétaire ou avec autorisation explicite et écrite.
 
 **Tests** : 69/69 tests dédiés (bridage, auth, SAST, config, réseau, rapport).
+
+#### 🧬 Analyse topologique transdisciplinaire (signature RATISS)
+
+La **touche unique** de RATISS : l'homologie persistante (qui sert à reconnaître les patterns dans les sciences) est transplantée vers la cybersécurité. La surface d'attaque devient un **nuage de points topologique** dans un espace de features (sévérité radiale, angle OWASP, exposabilité), et sa structure révèle les chaînes d'attaque :
+
+| Nombre de Betti | Signification en cybersécurité |
+|---|---|
+| **β₀** (composantes connexes) | Îlots de vulnérabilités isolés |
+| **β₁** (cycles 1D) | **Chaînes d'attaque (kill chains)** — cycles reliant plusieurs vulnérabilités exploitables en séquence |
+| **β₂** (cavités 2D) | Vulnérabilités multidimensionnelles profondes |
+| **Persistance** | Vulnérabilités qui survivent à plusieurs échelles = les plus critiques |
+
+**Score de risque topologique** (0-100) : `β0·10 + β1·25 + β2·15 + persistance·30`
+
+Module : `security/transdisc_security.py`. Tests : 19 tests dédiés (nuage de points, homologie, kill chains, chiffrement).
 
 ---
 
