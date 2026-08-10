@@ -1,6 +1,30 @@
-# Dockerfile — RATISS Aeon Prime
+# Dockerfile — RATISS Aeon Prime (v9.4)
 # Cible : Hugging Face Spaces / VPS (port 7860)
 # CPU-only, Memory Guard 7500 Mo, no GPU
+#
+# Build multi-étapes :
+#   1) stage "frontend" : compile l'UI React/TypeScript (Vite) -> app/static/
+#      (app/static/ est gitignoré, donc on le reconstruit dans l'image)
+#   2) stage final Python : copie le noyau scientifique + l'UI déjà buildée.
+# Sans ça, le serveur FastAPI n'aurait ni index.html ni les assets : l'écran
+# d'entrée v9.4 (OnboardingGate / WelcomeScreen) ne se chargerait pas.
+
+# ── Stage 1 : build du frontend React/TS ────────────────────────────────────
+FROM node:20-slim AS frontend
+
+# On reproduit la structure du repo (app/frontend) pour que outDir "../static"
+# (cf. vite.config.ts) se résolve en /build/app/static — comme en local.
+WORKDIR /build/app/frontend
+# Copier d'abord package.json + lockfile (cache Docker par dépendances)
+COPY app/frontend/package.json app/frontend/package-lock.json* ./
+RUN npm install --no-audit --no-fund
+
+# Copier le source du frontend et builder -> /build/app/static/
+COPY app/frontend/ ./
+RUN npm run build
+# Résultat : /build/app/static/{index.html,assets/}
+
+# ── Stage 2 : image Python finale ─────────────────────────────────────────────
 FROM python:3.11-slim
 
 LABEL maintainer="Jonathan Evina <evinajonathan13@gmail.com>"
@@ -20,8 +44,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier le code
+# Copier le code (noyau scientifique + config + assets logo)
 COPY . .
+
+# Copier l'UI déjà buildée depuis le stage frontend (gitignorée à la source)
+COPY --from=frontend /build/app/static/ ./app/static/
 
 # Créer les répertoires de travail
 RUN mkdir -p /app/workspace /app/data/pdb /app/config
@@ -32,9 +59,9 @@ ENV RATISS_PORT=7860
 ENV RATISS_RAM_LIMIT_MB=7500
 ENV PYTHONUNBUFFERED=1
 
-# Healthcheck
+# Healthcheck (sans curl : python urllib est toujours présent dans l'image)
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD curl -f http://localhost:7860/api/health || exit 1
+    CMD python -c "import urllib.request,sys; urllib.request.urlopen('http://localhost:7860/api/health', timeout=5); sys.exit(0)" || exit 1
 
 # Port HF Spaces standard
 EXPOSE 7860

@@ -111,15 +111,16 @@ python -m pytest tests/           # tests pipeline
 - `/api/preview/{filename}` — Preview artéfact (PDF, PNG, HTML)
 - `/ws` — WebSocket multiplexé (chat + terminal streaming)
 
-## Deploiement multi-environnements (v9.3.1)
-- **Dockerfile** — Image CPU-only (python:3.11-slim), Memory Guard 7500 Mo, cible HuggingFace Spaces / VPS (port 7860).
+## Deploiement multi-environnements (v9.4)
+- **Dockerfile** — Image multi-étapes CPU-only : stage `node:20-slim` qui build le frontend React (Vite → `app/static/`, gitignoré à la source) puis stage `python:3.11-slim` final (Memory Guard 7500 Mo, cible HuggingFace Spaces / VPS, port 7860). Healthcheck Python urllib (pas de curl). Sans le stage frontend, l'UI v9.4 (OnboardingGate/WelcomeScreen) ne serait pas servie.
 - **docker-compose.yml** — 3 profils :
   - `ratiss-server` (VPS/production, port 7860) — `docker compose up ratiss-server -d`
   - `ratiss-hf` (HuggingFace Spaces) — `docker compose --profile huggingface up ratiss-hf -d`
   - `ratiss-dev` (dev local hot-reload, port 12000) — `docker compose --profile dev up ratiss-dev -d`
 - **railway.json** — Deploiement Railway (backend FastAPI stateful).
 - **vercel.json** — Frontend statique servi par Vercel + rewrites vers le backend (Railway/Render/VPS).
-- Volumes persistants : `workspace/`, `data/`, `config/` (vault de cles API).
+- Volumes persistants : `workspace/`, `data/`, `config/` (vault de cles API + `sovereign_memory.json` → la mémoire de Ratiss survit aux redémarrages du conteneur).
+- **requirements.txt** — `python-multipart` ajouté (requis par FastAPI pour les routes `UploadFile`/`Form` de l'import universel `/api/files/upload`).
 
 ## Intégrations externes & import universel (v9.3)
 - **Store souverain** : `kernel/connectors/integrations.py` — 9 intégrations (github, arxiv, zenodo, openalex, crossref, rcsb_pdb, overleaf, ibm_quantum, tavily). État persistant dans `workspace/integrations_state.json`.

@@ -690,6 +690,18 @@ export function SettingsBranch({
           </div>
         </div>
       )}
+
+      {activeTab === "vault" && (
+        <div className="p-5 rounded-3xl bg-white/[0.01] border border-white/5">
+          <ApiVaultPanel />
+        </div>
+      )}
+
+      {activeTab === "skills" && (
+        <div className="p-5 rounded-3xl bg-white/[0.01] border border-white/5">
+          <RepoSkillPanel />
+        </div>
+      )}
     </div>
   );
 }
@@ -861,18 +873,6 @@ function ModelsTab({ isCompetitionBranch }: ModelsTabProps) {
           );
         })}
       </div>
-
-      {activeTab === "vault" && (
-        <div className="p-5 rounded-3xl bg-white/[0.01] border border-white/5">
-          <ApiVaultPanel />
-        </div>
-      )}
-
-      {activeTab === "skills" && (
-        <div className="p-5 rounded-3xl bg-white/[0.01] border border-white/5">
-          <RepoSkillPanel />
-        </div>
-      )}
     </div>
   );
 }

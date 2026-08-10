@@ -42,6 +42,32 @@ app = FastAPI(title="RATISS Aeon Prime", version="9.0.0")
 
 STATIC_DIR = _ROOT / "app" / "static"
 ASSETS_DIR = STATIC_DIR / "assets"
+
+# ── Logo & bannière (assets source, servis avant le mount /assets) ───────────
+# Les routes logo sont déclarées AVANT le mount StaticFiles("/assets") : Starlette
+# résout les routes dans l'ordre d'enregistrement, donc ces routes précises
+# (/assets/logo.svg, /assets/logo.png) sont servies par Ratiss et ne sont pas
+# masquées par le bundle Vite (qui a des noms hachés). Valide en local (pas de
+# build frontend) ET en Docker (build frontend présent).
+from fastapi.responses import Response as _Response
+
+
+@app.get("/assets/logo.svg")
+async def logo_svg():
+    p = _ROOT / "assets" / "ratiss_logo.svg"
+    if p.exists():
+        return _Response(content=p.read_text(encoding="utf-8"), media_type="image/svg+xml")
+    return JSONResponse({"error": "not_found"}, status_code=404)
+
+
+@app.get("/assets/logo.png")
+async def logo_png():
+    p = _ROOT / "assets" / "ratiss_logo.png"
+    if p.exists():
+        return _Response(content=p.read_bytes(), media_type="image/png")
+    return JSONResponse({"error": "not_found"}, status_code=404)
+
+
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # Assets du build Vite (frontend React) servis à la racine /assets/
 if ASSETS_DIR.exists():
@@ -81,26 +107,6 @@ async def index():
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "version": "9.0.0", "kernel": "ratiss_v9_aeon_prime"}
-
-
-# ── Logo & bannière (assets statiques) ────────────────────────────────────────
-from fastapi.responses import Response as _Response
-
-
-@app.get("/assets/logo.svg")
-async def logo_svg():
-    p = _ROOT / "assets" / "ratiss_logo.svg"
-    if p.exists():
-        return _Response(content=p.read_text(encoding="utf-8"), media_type="image/svg+xml")
-    return JSONResponse({"error": "not_found"}, status_code=404)
-
-
-@app.get("/assets/logo.png")
-async def logo_png():
-    p = _ROOT / "assets" / "ratiss_logo.png"
-    if p.exists():
-        return _Response(content=p.read_bytes(), media_type="image/png")
-    return JSONResponse({"error": "not_found"}, status_code=404)
 
 
 # ── Identité souveraine & mémoire persistante ─────────────────────────────────
@@ -651,13 +657,15 @@ async def chat_sse(body: dict = None):
                     f"\n*Trajectoires archivées: {len(h.list_trajectories())}*",
                     f"\n💡 Tapez `/refine` pour analyser la dernière trajectoire, ou `/refine apply` pour appliquer les leçons.",
                 ]
-                yield f"data: {json.dumps({'content': '\\n'.join(lines) + '\\n'}, ensure_ascii=False)}\n\n"
+                _content = "\n".join(lines) + "\n"
+                yield f"data: {json.dumps({'content': _content}, ensure_ascii=False)}\n\n"
             else:
                 apply = "apply" in _slash
                 h = _get_harness()
                 trajs = h.list_trajectories()
                 if not trajs:
-                    yield f"data: {json.dumps({'content': '⚠️ Aucune trajectoire archivée. Lancez d abord une tâche complexe (ex: 4MZI + Betti + ZK).\\n'}, ensure_ascii=False)}\n\n"
+                    _msg = "⚠️ Aucune trajectoire archivée. Lancez d abord une tâche complexe (ex: 4MZI + Betti + ZK).\n"
+                    yield f"data: {json.dumps({'content': _msg}, ensure_ascii=False)}\n\n"
                 else:
                     traj = h.load_trajectory(trajs[0]["file"])
                     summary = traj.get("summary", {})
@@ -702,7 +710,8 @@ async def chat_sse(body: dict = None):
                     else:
                         lines.append(f"\n💡 Tapez `/refine apply` pour appliquer ces {len(updates)} mise(s) à jour au harnais.")
 
-                    yield f"data: {json.dumps({'content': '\\n'.join(lines) + '\\n'}, ensure_ascii=False)}\n\n"
+                    _content = "\n".join(lines) + "\n"
+                    yield f"data: {json.dumps({'content': _content}, ensure_ascii=False)}\n\n"
             yield "data: [DONE]\n\n"
 
         from starlette.responses import StreamingResponse
