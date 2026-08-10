@@ -102,11 +102,11 @@ MODELS_CATALOG: list[dict[str, str]] = [
     {"id": "openai/gpt-4o", "name": "GPT-4o", "provider": "OpenAI", "desc": "Multimodal, généraliste haut de gamme"},
     {"id": "openai/gpt-4o-mini", "name": "GPT-4o mini", "provider": "OpenAI", "desc": "Rapide, économique, bon raisonnement"},
     {"id": "openai/o1", "name": "o1", "provider": "OpenAI", "desc": "Raisonnement étape par étape, mathématiques"},
-    # OpenRouter / Nemotron
+    # OpenRouter / Nemotron (slugs :free vérifiés le 2026-08)
     {"id": "openrouter/nvidia/nemotron-3-ultra-550b-a55b:free", "name": "Nemotron 3 Ultra", "provider": "OpenRouter", "desc": "Planification scientifique, gratuit"},
-    {"id": "openrouter/meta-llama/llama-3.3-70b-instruct:free", "name": "Llama 3.3 70B", "provider": "OpenRouter", "desc": "Génération longue, robuste"},
-    {"id": "openrouter/deepseek/deepseek-r1:free", "name": "DeepSeek R1", "provider": "OpenRouter", "desc": "Raisonnement étape par étape"},
-    {"id": "openrouter/qwen/qwen-2.5-72b-instruct:free", "name": "Qwen 2.5 72B", "provider": "OpenRouter", "desc": "Mathématiques et code"},
+    {"id": "openrouter/nvidia/nemotron-3-super-120b-a12b:free", "name": "Nemotron 3 Super 120B", "provider": "OpenRouter", "desc": "Raisonnement large, gratuit"},
+    {"id": "openrouter/google/gemma-4-26b-a4b-it:free", "name": "Gemma 4 26B", "provider": "OpenRouter", "desc": "Léger et réactif, gratuit"},
+    {"id": "openrouter/meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B", "provider": "OpenRouter", "desc": "Génération longue, robuste (payant)"},
     # Souverain
     {"id": "local/ratiss-planner", "name": "RATISS Local", "provider": "Souverain", "desc": "100% local, hors cloud, heuristique"},
 ]
