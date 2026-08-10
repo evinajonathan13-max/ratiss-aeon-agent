@@ -71,7 +71,7 @@ Au premier démarrage, un bel écran d'accueil présente Ratiss et propose une *
 
 <a id="securite-entree"></a>
 ### 4. Le standard de sécurité d'entrée — souverain par défaut
-On reste **fermé et local** par défaut (`sovereign`). Ouvrir le cloud (`cloud_opt_in`) est un choix explicite de l'utilisateur — jamais par défaut. Voir [la section dédiée](#4-le-standard-de-sécurité-dentrée-souverain-par-défaut).
+On reste **fermé et local** par défaut (`sovereign`). Ouvrir le cloud (`cloud_opt_in`) est un choix explicite de l'utilisateur — jamais par défaut. Voir [la section dédiée](#securite-entree).
 
 ### 5. Calibrage optimiste pour téléphone et tablette
 L'interface a été calibrée pour le tactile : gros boutons (≥ 48 px), défilement naturel, écran d'accueil responsive, respect des préférences de mouvement réduit. Et Ratiss parle en **langage naturel**, sans jargon inutile.
