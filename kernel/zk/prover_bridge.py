@@ -40,8 +40,10 @@ def generate_risc_zero_proof(result_json: dict) -> dict:
     quirk_data = result_json.get("qubit_processing", {})
     convergence = result_json.get("convergence", {})
 
-    energy_per_site = float(tj_data.get("energy_per_site", -0.170888))
-    entropy = float(quirk_data.get("entanglement_entropy", 0.0))
+    # Extraire les observables — SANS valeurs par défaut sûres.
+    # Si une clé est absente, l'invariant échoue explicitement (pas de faux positif).
+    energy_per_site = tj_data.get("energy_per_site")
+    entropy = quirk_data.get("entanglement_entropy")
     lx = int(result_json.get("params", {}).get("Lx", 4))
     ly = int(result_json.get("params", {}).get("Ly", 4))
     lattice_size = lx * ly
@@ -50,18 +52,22 @@ def generate_risc_zero_proof(result_json: dict) -> dict:
     psi_vector = tj_data.get("psi0_vec", quirk_data.get("psi_state_vector", [1.0] + [0.0]*15))
     psi_hash_hex = compute_state_vector_hash(psi_vector)
 
-    # Validate Guest Circuit Invariants
-    inv_energy = energy_per_site < 0.0
-    inv_entropy = entropy >= 0.0
+    # Validate Guest Circuit Invariants — valeurs manquantes = invariant FAIL
+    inv_energy = energy_per_site is not None and float(energy_per_site) < 0.0
+    inv_entropy = entropy is not None and float(entropy) >= 0.0
     inv_lattice = lattice_size > 0
+
+    # Normaliser pour le payload (0.0 si absent, mais proof_valid reste False)
+    energy_val = float(energy_per_site) if energy_per_site is not None else 0.0
+    entropy_val = float(entropy) if entropy is not None else 0.0
 
     proof_valid = inv_energy and inv_entropy and inv_lattice
 
     # Construct Public Commitment Payload
     public_inputs = {
-        "energy_per_site": energy_per_site,
+        "energy_per_site": energy_val,
         "state_vector_hash": psi_hash_hex,
-        "entanglement_entropy": entropy,
+        "entanglement_entropy": entropy_val,
         "lattice_size": lattice_size,
         "quantum_fidelity": float(convergence.get("quantum_fidelity", 1.0)),
         "convergence_percentage": float(convergence.get("convergence_percentage", 100.0))

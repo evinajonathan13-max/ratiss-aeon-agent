@@ -20,7 +20,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Body, Query
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -280,15 +280,23 @@ async def download_artifact(session_id: str, filename: str):
 
 
 @app.post("/api/run")
-async def run_sync(task: str = ""):
-    """Exécution synchrone (sans WebSocket) — pour tests/API."""
+async def run_sync(task: str = "", body: dict = Body(None)):
+    """Exécution synchrone (sans WebSocket) — pour tests/API.
+
+    Accepte la tâche soit en query string (?task=...) soit dans le corps JSON
+    {"task": "..."} pour la rétrocompatibilité avec les clients REST.
+    """
+    # Priorité : query string > body JSON
+    final_task = task
+    if not final_task and body:
+        final_task = body.get("task", "")
     result = {"error": "no_task"}
-    if task:
+    if final_task:
         # Émetteur noop pour run synchrone
         agent = RatissAgent(emit_fn=lambda evt: None)
         loop = asyncio.get_event_loop()
         agent.cascade.emit_fn = _make_sync_emitter(loop)
-        result = await asyncio.to_thread(agent.run, task)
+        result = await asyncio.to_thread(agent.run, final_task)
     return result
 
 

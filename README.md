@@ -12,7 +12,7 @@ Un agent agentique souverain combinant **physique quantique** (Lanczos ED), **to
 
 <br>
 
-![Version](https://img.shields.io/badge/version-9.4_Aeon_Prime-8B5CF6?style=for-the-badge&logo=atom&logoColor=white)
+![Version](https://img.shields.io/badge/version-9.4.1_Aeon_Prime-8B5CF6?style=for-the-badge&logo=atom&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
@@ -48,7 +48,7 @@ Un agent agentique souverain combinant **physique quantique** (Lanczos ED), **to
 | 📁 | [Import universel](#import-universel) | |
 | 🧠 | [Routeur LLM](#routeur-llm) | |
 | 🔄 | [Auto-amélioration (RLM)](#auto-amelioration) | |
-| 🛠️ | [Compétences (23 actions)](#competences) | |
+| 🛠️ | [Compétences (29 actions)](#competences) | |
 | 📡 | [API REST](#api-rest) | |
 | 🔒 | [Sécurité & souveraineté](#securite-souverainete) | |
 | 📦 | [Déploiement](#deploiement) | |
@@ -56,7 +56,25 @@ Un agent agentique souverain combinant **physique quantique** (Lanczos ED), **to
 ---
 
 <a id="nouveau"></a>
-## 🆕 Ce qui est nouveau : identité, mémoire & écran d'entrée
+## 🆕 Ce qui est nouveau
+
+### 🔒 v9.4.1 — Durcissement sécurité (audit post-tests)
+
+Suite à un audit de pénétration complet, **7 vulnérabilités/bugs corrigés** (dont 3 critiques) :
+
+- **Anti-RCE pipe-to-shell** : détection par regex de `curl/wget ... | bash/sh/zsh`, `; bash`, `&& bash`, `eval $(curl ...)` — contournement par URL interposée éliminé
+- **Anti-DoS sandbox** : watchdog thread `_thread.interrupt_main()` interrompt les boucles infinies après N secondes en mode Python restreint
+- **ZK-STARK strict** : les invariants physiques (énergie négative, entropie non négative, lattice valide) échouent explicitement si les clés sont absentes — fini les faux positifs sur structure mal formée
+- **Sandbox `__import__` restreint** : `numpy`/`scipy`/`matplotlib`/`psutil` désormais importables, `os`/`subprocess`/`socket` toujours bloqués
+- **git_clone → analyse auto** : le clonage d'un dépôt déclenche l'analyse du repo et propose des skills sous validation utilisateur
+- **API Vault** : validation `SUPPORTED_KEYS` — clé non supportée refusée
+- **register_skills** : signature `params_hints=` corrigée (au lieu de `metadata=`)
+
+Extras : `pypdf` ajouté aux dépendances, dépréciations `fpdf2 ln=` éliminées (0 warning), `/api/run` accepte body JSON + query string.
+
+**Validation** : 19/19 tests pytest · 7/7 tests cybersécurité · 0 DeprecationWarning. Voir [l'audit sécurité détaillé](#securite-souverainete).
+
+### v9.4 — Identité, mémoire & écran d'entrée
 
 Cette version ancre durablement **qui est Ratiss** et lui donne une **mémoire qui ne se perd jamais**. Tout est inclus : pas besoin d'un fichier externe.
 
@@ -591,7 +609,7 @@ RATISS accepte **tous les types de fichiers** via l'onglet « Fichiers » ou par
 | `/ws` | WebSocket | Canal multiplexé temps réel (chat + terminal + browser + python) |
 
 <a id="competences"></a>
-## 🛠️ Compétences (23 actions)
+## 🛠️ Compétences (29 actions)
 
 ### 🔬 Scientifiques (6)
 | Action | Description | Catégorie |
@@ -603,14 +621,15 @@ RATISS accepte **tous les types de fichiers** via l'onglet « Fichiers » ou par
 | `full_pipeline` | Pipeline complet RATISS | Orchestration |
 | `tryperposition` | Tryperposition unifiée Q ⊗ I ⊗ M | Orchestration |
 
-### 💻 Terminal (2) — agent agentique souverain
+### 💻 Terminal (3) — agent agentique souverain
 | Action | Description | Catégorie |
 |--------|-------------|-----------|
 | `terminal` | Exécute une commande shell (streaming WebSocket temps réel) | Terminal |
 | `git_clone` | Clone un dépôt Git dans le workspace | Terminal |
+| `repo_register_skills` | Valide et enregistre les skills proposées depuis un repo cloné | Terminal |
 
 Commandes autorisées : git, pip, python, curl, wget, ls, cat, grep, find, tar, npm, node, dot, etc.
-Sécurité : allowlist stricte, détection de patterns dangereux (rm -rf /, sudo, curl|bash), timeout 30s.
+Sécurité : allowlist stricte, détection de patterns dangereux par sous-chaînes **et regex** (`rm -rf /`, `sudo`, `curl ... | bash`, `wget ... | sh`, fork bomb, `mkfs`, `dd if=`, `nc -l`, `shutdown`), timeout 30s. Le clonage d'un dépôt déclenche automatiquement l'analyse du repo (langage, catégorie scientifique, points d'entrée) et propose des skills sous validation utilisateur.
 
 ### 🌐 Web scientifique (6)
 | Action | Description | Catégorie |
@@ -658,10 +677,29 @@ Tous les artéfacts sont previewables directement dans l'UI (iframe pour HTML, e
 |--------|-----------|
 | 🧠 **Memory Guard** | Limite stricte 7500 Mo, surveillance temps réel |
 | 🔑 **Sessions** | SQLite local, jetons PBKDF2-HMAC-SHA256 (600 000 itérations) |
-| 📂 **Isolation** | Workspace physique par session |
-| 🐳 **Sandbox** | NemoSandbox — Docker éphémère (réseau désactivé, mem 2g, read-only) ou Python restreint (liste blanche d'imports) |
+| 📂 **Isolation** | Workspace physique par session, anti path-traversal |
+| 🐳 **Sandbox** | NemoSandbox — Docker éphémère (réseau désactivé, mem 2g, read-only) ou Python restreint (`__builtins__` filtrés, `__import__` restreint à une liste blanche, `numpy`/`scipy`/`matplotlib`/`psutil` autorisés, `os`/`subprocess`/`socket` bloqués) |
+| ⏱️ **Sandbox timeout** | Mode restreint : watchdog thread `_thread.interrupt_main()` — boucle infinie interrompue après N secondes (anti-DoS) |
+| 🖥️ **Terminal** | Allowlist stricte + détection par sous-chaînes **et regex** : `curl ... \| bash`, `wget ... \| sh`, `; bash`, `&& bash`, `eval $(curl ...)` bloqués (anti-RCE pipe-to-shell) |
+| 🔐 **API Vault** | Chiffrement au repos Fernet (AES + HMAC), chmod 600, validation `SUPPORTED_KEYS` — clé non supportée refusée |
+| 🔏 **ZK-STARK** | Invariants physiques validés strictement : énergie négative, entropie non négative, lattice valide. Aucune valeur par défaut sûre — structure mal formée = preuve INVALIDE |
 | 🛡️ **Souveraineté** | Aucune donnée envoyée vers un service cloud sans clé API explicite |
 | 🔐 **Tokens intégrations** | Stockés localement (variables d'environnement), jamais loggés |
+
+### Audit sécurité v9.4.1 (post-corrections)
+7 vulnérabilités/bugs identifiés par tests de pénétration et **tous corrigés** :
+
+| # | Vulnérabilité | Sévérité | Statut |
+|---|---|:---:|:---:|
+| 1 | Contournement filtre `curl\|bash` par URL interposée | 🔴 HAUTE | ✅ Regex |
+| 2 | `git_clone` ne déclenchait pas l'analyse auto | 🟡 MOYENNE | ✅ Corrigé |
+| 3 | `register_skills` échec silencieux (`metadata=` invalide) | 🟡 MOYENNE | ✅ Corrigé |
+| 4 | Clé API non supportée acceptée dans le vault | 🟢 FAIBLE | ✅ Validé |
+| 5 | Sandbox Python sans timeout (DoS possible) | 🔴 HAUTE | ✅ Watchdog |
+| 6 | `numpy`/`scipy`/`matplotlib` non importables en sandbox | 🟡 MOYENNE | ✅ `__import__` restreint |
+| 7 | ZK-STARK faux positifs sur structure mal formée | 🔴 HAUTE | ✅ Invariants stricts |
+
+**Validation finale** : 19/19 tests pytest · 7/7 tests cybersécurité · 0 DeprecationWarning.
 
 ---
 
@@ -679,7 +717,7 @@ Tous les artéfacts sont previewables directement dans l'UI (iframe pour HTML, e
 
 ## 🧩 Dépendances
 
-**Requises** (Python 3.11+) — frugal : `fastapi`, `uvicorn`, `websockets`, `numpy`, `scipy`, `psutil`
+**Requises** (Python 3.11+) — frugal : `fastapi`, `uvicorn`, `websockets`, `numpy`, `scipy`, `psutil`, `matplotlib`, `fpdf2`, `pypdf`, `cryptography`
 
 **Optionnelles** (fallbacks natifs si absentes) : `qiskit`, `qiskit-ibm-runtime`, `gudhi`, `perceval`, `biopython`
 

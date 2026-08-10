@@ -14,6 +14,8 @@ psutil>=5.9,<7.0
 # Génération de contenu (PDF, graphiques)
 matplotlib>=3.7,<4.0
 fpdf2>=2.7,<3.0
+# Extraction de texte PDF (requis par les tests PDF enrichis v9.4)
+pypdf>=4.0.0
 
 # Browser automation (type Manus IA)
 playwright>=1.40,<2.0

@@ -102,8 +102,42 @@ def run_topology_only(n_points: int = 500, max_dimension: int = 2, max_edge: flo
 
 
 def generate_zk_proof(result_dict: dict[str, Any]) -> dict[str, Any]:
-    """Génère une preuve ZK-STARK RISC Zero à partir d'un résultat de solveur."""
-    proof = generate_risc_zero_proof(result_dict)
+    """Génère une preuve ZK-STARK RISC Zero à partir d'un résultat de solveur.
+
+    Normalise les structures plates (ex: {'ground_state_energy': -3.5}) et les
+    structures partielles (tj_model sans energy_per_site) vers la structure
+    attendue par le prover afin d'éviter les faux positifs lorsque les clés
+    sont absentes.
+    """
+    normalized = dict(result_dict)
+    # Normaliser tj_model : mapper ground_state_energy → energy_per_site si absent
+    tj = dict(normalized.get("tj_model", {}))
+    if "energy_per_site" not in tj and "ground_state_energy" in tj:
+        tj["energy_per_site"] = tj["ground_state_energy"]
+    # Normaliser structure plate → tj_model
+    if not tj:
+        for k in ("ground_state_energy", "energy_per_site", "psi0_vec", "psi_norm"):
+            if k in normalized:
+                tj[k] = normalized.pop(k)
+        if "energy_per_site" not in tj and "ground_state_energy" in tj:
+            tj["energy_per_site"] = tj["ground_state_energy"]
+    if tj:
+        normalized["tj_model"] = tj
+
+    # Normaliser qubit_processing
+    qp = dict(normalized.get("qubit_processing", {}))
+    if "entanglement_entropy" not in qp and "entropy" in qp:
+        qp["entanglement_entropy"] = qp["entropy"]
+    if not qp:
+        for k in ("entanglement_entropy", "entropy", "psi_state_vector"):
+            if k in normalized:
+                qp[k] = normalized.pop(k)
+        if "entanglement_entropy" not in qp and "entropy" in qp:
+            qp["entanglement_entropy"] = qp["entropy"]
+    if qp:
+        normalized["qubit_processing"] = qp
+
+    proof = generate_risc_zero_proof(normalized)
     return proof
 
 

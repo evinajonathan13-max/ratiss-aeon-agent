@@ -96,7 +96,14 @@ def _save_vault(vault: Dict[str, Any]) -> None:
 
 
 def store_key(key_id: str, api_key: str, label: str = "", metadata: Optional[Dict] = None) -> bool:
-    """Stocke (chiffre) une cle API dans le vault persistant."""
+    """Stocke (chiffre) une cle API dans le vault persistant.
+
+    Refuse les clés non supportées (validation contre SUPPORTED_KEYS) pour éviter
+    de stocker des identifiants arbitraires non maîtrisés.
+    """
+    if key_id not in SUPPORTED_KEYS:
+        logger.warning(f"[VAULT] Clé non supportée refusée: {key_id}")
+        return False
     vault = _load_vault()
     vault.setdefault("keys", {})[key_id] = {
         "encrypted": _encrypt(api_key),

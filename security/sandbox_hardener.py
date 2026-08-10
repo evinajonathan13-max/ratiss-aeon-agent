@@ -14,10 +14,12 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 import json
 import shutil
 import logging
 import tempfile
+import threading
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -31,16 +33,41 @@ DEFAULT_ALLOWED = [
     "math", "random", "collections", "itertools", "json", "re",
     "statistics", "fractions", "decimal", "datetime", "hashlib",
     "base64", "string", "typing", "dataclasses", "abc",
-    "numpy", "scipy", "psutil",
+    "numpy", "scipy", "psutil", "matplotlib",
 ]
 
 
 def ensure_allowed_imports() -> Path:
-    """S'assure que config/allowed_imports.txt existe."""
+    """S'assure que config/allowed_imports.txt existe et contient tous les modules par défaut."""
     ALLOWED_IMPORTS_FILE.parent.mkdir(parents=True, exist_ok=True)
     if not ALLOWED_IMPORTS_FILE.exists():
         ALLOWED_IMPORTS_FILE.write_text("\n".join(DEFAULT_ALLOWED) + "\n", encoding="utf-8")
+    else:
+        # Fusionner : ajouter les modules DEFAULT manquants (ex: matplotlib)
+        existing = set(line.strip() for line in ALLOWED_IMPORTS_FILE.read_text().splitlines() if line.strip() and not line.startswith("#"))
+        missing = [m for m in DEFAULT_ALLOWED if m not in existing]
+        if missing:
+            content = ALLOWED_IMPORTS_FILE.read_text(encoding="utf-8")
+            if not content.endswith("\n"):
+                content += "\n"
+            content += "\n".join(missing) + "\n"
+            ALLOWED_IMPORTS_FILE.write_text(content, encoding="utf-8")
     return ALLOWED_IMPORTS_FILE
+
+
+def _make_restricted_import(allowed: set[str]):
+    """Crée une fonction __import__ restreinte qui ne permet d'importer que les modules
+    de la liste blanche. Refuse os, subprocess, socket, etc."""
+    import importlib
+
+    def _restricted_import(name, globals=None, locals=None, fromlist=(), level=0):
+        # Autoriser seulement le module de premier niveau dans la liste blanche
+        root = name.split(".")[0]
+        if root not in allowed:
+            raise ImportError(f"Module '{name}' non autorisé dans le sandbox. Allowlist: {', '.join(sorted(allowed))}")
+        return importlib.import_module(name)
+
+    return _restricted_import
 
 
 def is_docker_available() -> bool:
@@ -110,7 +137,17 @@ class NemoSandbox:
             Path(script_path).unlink(missing_ok=True)
 
     def _exec_restricted(self, code: str, timeout: int) -> dict[str, Any]:
-        """Exécution Python restreinte (fallback sans Docker)."""
+        """Exécution Python restreinte (fallback sans Docker).
+
+        Applique un timeout strict via un watchdog thread (_thread.interrupt_main)
+        qui lève KeyboardInterrupt dans le thread d'exécution principal, empêchant
+        les boucles infinies (DoS). Les builtins dangereux (open, eval, exec,
+        __import__) sont retirés.
+        """
+        import _thread
+        import io
+        import contextlib
+
         allowed = set(line.strip() for line in ALLOWED_IMPORTS_FILE.read_text().splitlines() if line.strip() and not line.startswith("#"))
         safe_builtins = {
             "abs": abs, "all": all, "any": any, "bool": bool, "chr": chr, "dict": dict,
@@ -121,6 +158,8 @@ class NemoSandbox:
             "repr": repr, "reversed": reversed, "round": round, "set": set, "slice": slice,
             "sorted": sorted, "str": str, "sum": sum, "tuple": tuple, "type": type, "zip": zip,
             "True": True, "False": False, "None": None,
+            # __import__ restreint : ne permet d'importer que les modules autorisés
+            "__import__": _make_restricted_import(allowed),
         }
         globals_env: dict[str, Any] = {"__builtins__": safe_builtins}
         for mod_name in allowed:
@@ -129,12 +168,23 @@ class NemoSandbox:
             except Exception:
                 pass
 
-        import io, contextlib
         sout, serr = io.StringIO(), io.StringIO()
+        # Watchdog : déclenche une interruption après `timeout` secondes
+        timed_out = {"flag": False}
+
+        def _watchdog():
+            time.sleep(timeout)
+            timed_out["flag"] = True
+            _thread.interrupt_main()
+
+        watcher = threading.Thread(target=_watchdog, daemon=True)
+        watcher.start()
         try:
             with contextlib.redirect_stdout(sout), contextlib.redirect_stderr(serr):
                 exec(compile(code, "<sandbox>", "exec"), globals_env, {})
             return {"stdout": sout.getvalue(), "stderr": serr.getvalue(), "returncode": 0, "mode": "restricted"}
+        except KeyboardInterrupt:
+            return {"stdout": sout.getvalue(), "stderr": serr.getvalue() + f"\n[TIMEOUT après {timeout}s]", "returncode": -1, "mode": "restricted_timeout"}
         except Exception as e:
             return {"stdout": sout.getvalue(), "stderr": serr.getvalue() + f"\n{type(e).__name__}: {e}", "returncode": 1, "mode": "restricted"}
 

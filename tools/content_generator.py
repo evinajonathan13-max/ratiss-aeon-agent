@@ -259,10 +259,10 @@ def generate_pdf(title: str, sections: list[dict[str, Any]], output_dir: Path | 
     pdf.rect(0, 0, 210, 30, "F")
     pdf.set_text_color(68, 147, 248)
     pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 12, "RATISS Aeon Prime", ln=True, align="L")
+    pdf.cell(0, 12, "RATISS Aeon Prime", new_x="LMARGIN", new_y="NEXT", align="L")
     pdf.set_text_color(139, 148, 158)
     pdf.set_font("Helvetica", "", 8)
-    pdf.cell(0, 5, "Agent scientifique souverain - Rapport genere automatiquement", ln=True)
+    pdf.cell(0, 5, "Agent scientifique souverain - Rapport genere automatiquement", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(8)
 
     # Titre
@@ -280,7 +280,7 @@ def generate_pdf(title: str, sections: list[dict[str, Any]], output_dir: Path | 
     pdf.set_text_color(139, 148, 158)
     pdf.set_font("Helvetica", "I", 9)
     from datetime import datetime, timezone
-    pdf.cell(0, 5, _sanitize(f"Auteur: Jonathan Evina  |  Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}  |  ORCID: 0009-0000-4092-5313"), ln=True)
+    pdf.cell(0, 5, _sanitize(f"Auteur: Jonathan Evina  |  Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}  |  ORCID: 0009-0000-4092-5313"), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(6)
 
     # Sections

@@ -194,7 +194,7 @@ def validate_and_register_skills(analysis: Dict[str, Any], harness_manager, skil
                 label=skill["label"],
                 category=skill["category"],
                 enabled=True,
-                metadata={"invoke": skill["invoke"], "source": "repo_analysis", "entry_file": skill["entry_file"]},
+                params_hints={"invoke": skill["invoke"], "source": "repo_analysis", "entry_file": skill["entry_file"]},
             )
             registered.append(skill["skill_id"])
         except Exception as e:

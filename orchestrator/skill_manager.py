@@ -46,7 +46,10 @@ def _zk_proof(params: dict[str, Any], _ctx: dict[str, Any] | None = None) -> dic
     ctx = _ctx or {}
     result_dict = ctx.get("last_result", {})
     if not result_dict:
-        result_dict = {"tj_model": {"ground_state_energy": -3.4215, "psi_norm": 0.9984}}
+        result_dict = {
+            "tj_model": {"energy_per_site": -0.2138, "ground_state_energy": -3.4215, "psi_norm": 0.9984},
+            "qubit_processing": {"entanglement_entropy": 0.0},
+        }
     proof = bridge.generate_zk_proof(result_dict)
     # Normalisation des clés pour l'UI (le prover utilise proof_receipt_b64 / public_commitment)
     return {
@@ -92,10 +95,10 @@ def _git_clone(params: dict[str, Any], ctx: dict[str, Any] | None = None) -> dic
     cwd = Path(workspace) if workspace else None
     te = TerminalExecutor(cwd=cwd)
     result = te.git_clone(params.get("url", ""), params.get("dest"))
-    # Si le clone a reussi, analyser le repo pour proposer des skills
-    if result.get("status") in ("SUCCESS", "OK") and result.get("dest"):
+    # Si le clone a réussi, analyser le repo pour proposer des skills
+    if result.get("returncode") == 0 and result.get("dest_path"):
         try:
-            analysis = analyze_repo(result["dest"])
+            analysis = analyze_repo(result["dest_path"])
             result["repo_analysis"] = analysis
         except Exception as e:
             result["repo_analysis"] = {"status": "ERROR", "error": str(e)}
