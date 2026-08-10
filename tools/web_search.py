@@ -1,5 +1,5 @@
 """
-tools/web_search.py — Recherche web générale (type Manus IA / OpenManus).
+tools/web_search.py — Recherche web générale (agent agentique souverain).
 
 Permet à l'agent RATISS de faire des recherches web génériques, au-delà des
 sources scientifiques spécialisées (arXiv, PubMed, ChEMBL).
@@ -8,7 +8,7 @@ Priorité :
   1. Tavily API (si TAVILY_API_KEY présent) — optimisé pour l'IA
   2. DuckDuckGo HTML (fallback, sans clé) — souveraineté
 
-Équivalent du GoogleSearch d'OpenManus, adapté pour RATISS.
+Équivalent du GoogleSearch de RATISS, adapté pour RATISS.
 """
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 """
-tools/python_executor.py — Exécution Python sandbox (type Manus IA / OpenManus).
+tools/python_executor.py — Exécution Python sandbox (agent agentique souverain).
 
 Permet à l'agent RATISS d'écrire et d'exécuter du code Python arbitraire dans
 un environnement isolé avec :
@@ -9,7 +9,7 @@ un environnement isolé avec :
   - Restrictions : pas d'accès au système de fichiers en dehors du workspace
   - Variables prédéfinies : numpy, scipy, matplotlib disponibles
 
-Équivalent du PythonExecute d'OpenManus, adapté pour RATISS.
+Équivalent du PythonExecute de RATISS, adapté pour RATISS.
 """
 from __future__ import annotations
 

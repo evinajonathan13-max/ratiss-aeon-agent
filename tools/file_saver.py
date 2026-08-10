@@ -1,8 +1,8 @@
 """
-tools/file_saver.py — Sauvegarde de fichiers (type Manus IA / OpenManus).
+tools/file_saver.py — Sauvegarde de fichiers (agent agentique souverain).
 
 Permet à l'agent RATISS de sauvegarder du contenu arbitraire dans le workspace.
-Équivalent du FileSaver d'OpenManus.
+Équivalent du FileSaver de RATISS.
 """
 from __future__ import annotations
 

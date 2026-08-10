@@ -5,7 +5,7 @@ Boucle principale : Plan (Nemotron) → Execute (noyau RATISS) → Certify (ZK-S
 → Generate Artifacts. Émet des événements en cascade vers le WebSocket à chaque
 étape, pour alimentation du frontend en temps réel.
 
-C'est l'équivalent Python pur et souverain d'un agent de type Manus/OpenHands,
+C'est l'équivalent Python pur et souverain d'un agent agentique souverain (type RATISS/OpenHands),
 spécialisé sciences (quantique, topologie, bio, crypto).
 """
 from __future__ import annotations

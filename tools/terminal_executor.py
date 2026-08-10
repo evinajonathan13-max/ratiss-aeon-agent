@@ -1,5 +1,5 @@
 """
-tools/terminal_executor.py — Terminal intégré sécurisé (type Manus IA).
+tools/terminal_executor.py — Terminal intégré sécurisé (agent agentique souverain).
 
 Exécute des commandes shell en streaming (stdout/stderr temps réel vers WebSocket),
 avec :

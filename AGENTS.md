@@ -2,17 +2,18 @@
 
 ## Contexte du projet
 - **Auteur** : Jonathan Evina (18, Cameroun) · ORCID 0009-0000-4092-5313 · DOI 10.17605/OSF.IO/6JZMB
-- **Objectif** : Agent scientifique autonome souverain type Manus IA / OpenManus (quantum + topology + bio + crypto + browser + terminal + python + web + contenu) pour incubateurs/investisseurs
+- **Objectif** : Agent scientifique autonome souverain (quantum + topology + bio + crypto + browser + terminal + python + web + contenu) pour incubateurs/investisseurs
 - **Dépôt** : `ratiss-aeon-agent` (GitHub: evinajonathan13-max), branche `main`
 - **Source** : extension de `ratiss-kkl` (PR #1 merged)
-- **Version** : 9.2.0 (kernel ratiss_v9_aeon_prime) — couche d'auto-amélioration RLM/Continual Harness ajoutée
+- **Version** : 9.3.0 (kernel ratiss_v9_aeon_prime) — UI React immersive + couche d'auto-amélioration RLM/Continual Harness
 
 ## Architecture (23 skills + couche RLM)
 - `kernel/` — Noyau scientifique RATISS V9 (main.py, bridge.py, solvers/, connectors/, core/, system/, zk/)
 - `orchestrator/` — Agent agentique avec **boucle ReAct** (agent.py, nemotron_client.py, skill_manager.py, cascade.py)
+  - `llm_router.py` — **NOUVEAU v9.3.1** Routeur LLM multi-fournisseurs : Anthropic (Claude), Google (Gemini), OpenAI (GPT), OpenRouter (Nemotron + **tout modèle personnalisé saisi par l'utilisateur**) + fallback souverain local. `complete()`, `plan()`, `set_api_key()`, catalogue de 14 modèles. `_parse_model_id()` route via le préfixe (`openrouter/<n'importe-quel-id>`).
   - `auto_improve.py` — **NOUVEAU v9.2** Couche RLM : analyze_trajectory, extract_lessons (pattern/heuristic/pitfall/memory), validate_lessons_with_zk, pipeline refine()
   - `harness_manager.py` — **NOUVEAU v9.2** Continual Harness : état persistant versionné (prompts/skills/memory/subagents), CRUD, snapshots + rollback, archive leçons & trajectoires
-- `tools/` — Manus IA tools :
+- `tools/` — outils agentiques :
   - `terminal_executor.py` — Shell sécurisé (allowlist, streaming, blocage rm -rf /)
   - `web_client.py` — arXiv, PubMed, ChEMBL, PDB, AlphaFold, fetch URL
   - `content_generator.py` — PDF (fpdf2), charts (matplotlib), pages HTML
@@ -21,7 +22,13 @@
   - `web_search.py` — **NOUVEAU** Recherche web générale (Tavily API + DuckDuckGo fallback)
   - `file_editor.py` — **NOUVEAU** Éditeur de fichiers (view, create, str_replace, insert, undo, list)
   - `file_saver.py` — **NOUVEAU** Sauvegarder du contenu arbitraire
-- `app/` — FastAPI + WebSocket + UI 5-panneaux (server.py, static/index.html|style.css|app.js)
+- `app/` — FastAPI + WebSocket + UI React immersive
+  - `server.py` — FastAPI (40 routes), mount `/static` + `/assets`, SSE `/api/chat`
+  - `frontend/` — **NOUVEAU v9.3** UI React/TypeScript (Vite 6 + React 19 + Tailwind v4)
+    - `src/App.tsx` — App principale, handleSend (SSE reader)
+    - `src/components/` — Sidebar, MessageBubble, ThinkingLoader, ChatInput, PredictiveSuggestions, AgenticActionCard, RatissAgentViewer, SovereignLab, InteractiveTerminal, RatissLive, VoiceManager, SettingsBranch…
+    - `src/lib/` — browserTts, pdfReportGenerator
+    - build → `app/static/` (servi par FastAPI)
 - `security/` — Sessions, PBKDF2, isolation workspace, NemoSandbox
 - `screenshots/` — 4 captures d'écran (dashboard, arXiv+PDF, preview, terminal)
 
@@ -30,7 +37,7 @@
 - **2 terminal** : terminal, git_clone
 - **6 web scientifique** : web_fetch, web_arxiv, web_pubmed, web_chembl, web_pdb, web_alphafold
 - **4 contenu** : generate_pdf, generate_chart, generate_webpage, generate_betti_diagram
-- **5 Manus IA (NOUVEAU v9.1)** : browser, python_execute, google_search, file_editor, file_saver
+- **5 agent agentique (NOUVEAU v9.1)** : browser, python_execute, google_search, file_editor, file_saver
 
 ## Boucle ReAct (v9.1)
 L'agent utilise désormais une boucle **Think → Act → Observe** au lieu de plan-then-execute :
@@ -67,6 +74,15 @@ python -m pytest tests/           # tests pipeline
 - `/api/terminal?command=...` — Terminal direct
 - `/api/preview/{filename}` — Preview artéfact (PDF, PNG, HTML)
 - `/ws` — WebSocket multiplexé (chat + terminal streaming)
+
+## Intégrations externes & import universel (v9.3)
+- **Store souverain** : `kernel/connectors/integrations.py` — 9 intégrations (github, arxiv, zenodo, openalex, crossref, rcsb_pdb, overleaf, ibm_quantum, tavily). État persistant dans `workspace/integrations_state.json`.
+- **Actions externes** : `kernel/connectors/integration_actions.py` — GitHub (search/repos/langages), arXiv (search), Zenodo, OpenAlex, Crossref, RCSB PDB (fetch), Overleaf. Toutes en HTTP via `httpx`/`urllib`, sans dépendance lourde.
+- **Endpoints** : `GET /api/integrations`, `POST /api/integrations/connect|disconnect`, `POST /api/integrations/{id}/{action}`.
+- **Import universel** : `POST /api/files/upload` (multipart, champ `file`) — détection MIME par extension, classification en `kind` (structure_*, data_*, array_*, code_*, document_*, latex, bibliography, image, video, audio, archive_*). Stockage dans `workspace/uploads/`.
+- **Endpoints fichiers** : `GET /api/files`, `DELETE /api/files/{id}`, `POST /api/files/analyze` (passe le chemin absolu du fichier au pipeline agentique).
+- **Frontend** : `lib/api.ts` (helpers HTTP), `components/FileManager.tsx` (drag & drop + liste + analyse), `components/IntegrationsPanel.tsx` (cartes par catégorie, connect/disconnect, actions). Onglets `models`/`agent`/`integrations`/`files` dans `SettingsBranch.tsx`.
+- **GitHub d'abord** : l'intégration GitHub est marquée priorité et apparaît en tête du panneau. `GITHUB_TOKEN` détecté automatiquement.
 
 ## Découvertes clés
 1. **quantum_solver.py** retourne un dict imbriqué : `tj_model`, `convergence`, `qubit_processing` (pas top-level)

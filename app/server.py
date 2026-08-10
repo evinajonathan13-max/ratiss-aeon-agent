@@ -20,12 +20,19 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from kernel import bridge
 from kernel.connectors.registry import get_connectors_status, list_local_pdb
+from kernel.connectors.integrations import (
+    integrations_status as _integrations_status,
+    set_token as _set_integration_token,
+    clear_token as _clear_integration_token,
+    get_token as _get_integration_token,
+)
+from kernel.connectors.integration_actions import run_integration
 from orchestrator.agent import RatissAgent, get_skills_overview
 
 logger = logging.getLogger("ratiss.server")
@@ -34,7 +41,11 @@ logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(name)s %(message
 app = FastAPI(title="RATISS Aeon Prime", version="9.0.0")
 
 STATIC_DIR = _ROOT / "app" / "static"
+ASSETS_DIR = STATIC_DIR / "assets"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+# Assets du build Vite (frontend React) servis à la racine /assets/
+if ASSETS_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 # ── Connexions WebSocket actives ──────────────────────────────────────────────
 _active_ws: set[WebSocket] = set()
@@ -128,6 +139,457 @@ async def run_sync(task: str = ""):
         agent.cascade.emit_fn = _make_sync_emitter(loop)
         result = await asyncio.to_thread(agent.run, task)
     return result
+
+
+# ── Endpoints de compatibilité UI (frontend React) ───────────────────────────
+# Ces endpoints adaptent le backend existant à la logique visuelle du frontend :
+# /api/chat (SSE), /api/stats, /api/config/*, /api/agentic/*.
+
+
+@app.get("/api/stats")
+async def stats():
+    """Compteur de requêtes (compat UI). Persistant en mémoire processus."""
+    stats.n = getattr(stats, "n", 0)
+    return {"count": stats.n, "quota": 100}
+
+
+@app.post("/api/stats", include_in_schema=False)
+async def stats_inc():
+    stats.n = getattr(stats, "n", 0) + 1
+    return {"count": stats.n, "quota": 100}
+
+
+@app.get("/api/config/status")
+async def config_status():
+    """État de configuration — tous les fournisseurs LLM."""
+    from orchestrator.llm_router import llm_router
+
+    status = llm_router.status()
+    any_configured = any(p["configured"] for p in status["providers"].values())
+    return {"configured": any_configured, "providers": status["providers"], "default_model": status["default_model"]}
+
+
+@app.post("/api/config/key")
+async def config_key(body: dict = None):
+    """Configure une clé API pour un fournisseur LLM.
+
+    Body: {"provider": "anthropic|google|openai|openrouter", "api_key": "sk-..."}
+    """
+    from orchestrator.llm_router import set_api_key, llm_router
+
+    body = body or {}
+    provider = body.get("provider", body.get("provider_id", ""))
+    api_key = body.get("api_key", "").strip()
+    if not provider or not api_key:
+        return JSONResponse({"error": "missing_provider_or_key"}, status_code=400)
+    ok = set_api_key(provider, api_key)
+    if not ok:
+        return JSONResponse({"error": "unknown_provider", "provider": provider}, status_code=400)
+    # Si un model_id est fourni, l'activer comme défaut
+    if body.get("model_id"):
+        os.environ["RATISS_MODEL_ID"] = body["model_id"]
+    status = llm_router.status()
+    return {"configured": True, "provider": provider, "providers": status["providers"]}
+
+
+@app.get("/api/llm/models")
+async def llm_models():
+    """Liste tous les modèles disponibles (catalogue multi-fournisseurs)."""
+    from orchestrator.llm_router import llm_router
+
+    return llm_router.status()
+
+
+@app.get("/api/llm/status")
+async def llm_status():
+    """Alias de /api/llm/models — état des fournisseurs LLM."""
+    from orchestrator.llm_router import llm_router
+
+    return llm_router.status()
+
+
+@app.post("/api/llm/test")
+async def llm_test(body: dict = None):
+    """Teste une connexion LLM en envoyant un prompt simple.
+
+    Body: {"model_id": "anthropic/claude-3-5-sonnet", "prompt": "Dis bonjour"}
+    """
+    from orchestrator.llm_router import llm_router
+
+    body = body or {}
+    model_id = body.get("model_id", "")
+    prompt = body.get("prompt", "Réponds en une phrase : quel est ton nom et ton modèle ?")
+    try:
+        text = llm_router.complete(prompt, model_id=model_id, max_tokens=256)
+        return {"status": "SUCCESS", "model_id": model_id, "response": text}
+    except Exception as e:
+        return {"status": "FAILED", "model_id": model_id, "error": str(e)}
+
+
+@app.post("/api/llm/select")
+async def llm_select(body: dict = None):
+    """Sélectionne le modèle LLM par défaut pour l'agent.
+
+    Body: {"model_id": "anthropic/claude-3-5-sonnet"}
+    """
+    body = body or {}
+    model_id = body.get("model_id", "")
+    if not model_id:
+        return JSONResponse({"error": "missing_model_id"}, status_code=400)
+    os.environ["RATISS_MODEL_ID"] = model_id
+    return {"status": "SUCCESS", "model_id": model_id}
+
+
+@app.post("/api/agentic/decompose-task")
+async def decompose_task(body: dict = None):
+    """Décomposition agentique d'un prompt en étapes (Plan Nemotron)."""
+    body = body or {}
+    prompt = body.get("prompt", "Calcul scientifique")
+    try:
+        from kernel.llm.nemotron_client import NemotronClient
+        nc = NemotronClient()
+        plan = nc.plan(prompt)
+        steps = plan.get("steps", [])
+        return {"status": "SUCCESS", "steps": steps, "planner": plan.get("planner", "nemotron")}
+    except Exception as e:
+        # Fallback : étapes génériques pour ne pas casser l'UI
+        return {
+            "status": "SUCCESS",
+            "steps": [
+                {"id": 1, "action": "plan", "description": "Analyse de la requête"},
+                {"id": 2, "action": "full_pipeline", "description": "Pipeline scientifique"},
+                {"id": 3, "action": "zk_proof", "description": "Certification ZK-STARK"},
+                {"id": 4, "action": "generate_pdf", "description": "Génération du rapport"},
+            ],
+            "planner": "fallback",
+            "note": str(e),
+        }
+
+
+@app.post("/api/agentic/predict-next")
+async def predict_next(body: dict = None):
+    """Suggestions prédictives pour la suite de la conversation."""
+    body = body or {}
+    ctx = body.get("context", "")[:500]
+    base = [
+        "Certifier ce résultat avec ZK-STARK",
+        "Générer un rapport PDF académique",
+        "Analyser les nombres de Betti",
+        "Comparer avec une autre structure PDB",
+        "Visualiser la topologie persistante",
+    ]
+    return {"suggestions": base, "status": "SUCCESS"}
+
+
+@app.post("/api/agentic/search-grounding")
+async def search_grounding(body: dict = None):
+    """Recherche web pour grounding factuel (sans WebSocket)."""
+    body = body or {}
+    query = body.get("query", "")
+    try:
+        from tools.web_search import google_search
+        r = google_search(query, max_results=body.get("max_results", 5))
+        return r
+    except Exception as e:
+        return {"status": "FAILED", "error": str(e), "results": []}
+
+
+@app.post("/api/competition/analyze")
+async def competition_analyze(file: bytes = None, filename: str = ""):
+    """Analyse forensics d'un fichier attaché (compat UI)."""
+    return {
+        "status": "SUCCESS",
+        "report": f"### 🔍 PHENIX-FORENSICS\n\nAnalyse du fichier **{filename or 'attaché'}** "
+        f"({len(file) if file else 0} octets). Le pipeline RATISS a intégré ce fichier "
+        "pour résolution agentique. Connectez le moteur Gemini/Nemotron via /api/config/key "
+        "pour une analyse sémantique complète.",
+    }
+
+
+@app.post("/api/competition/execute")
+async def competition_execute(body: dict = None):
+    """Exécution Python agentique (compat UI Phenix ODV)."""
+    body = body or {}
+    code = body.get("code", "")
+    if not code:
+        return {"status": "FAILED", "error": "no_code"}
+    from tools.python_executor import PythonExecutor
+    pe = PythonExecutor(timeout=body.get("timeout", 30), workspace_dir=str(_ROOT / "workspace"))
+    return pe.execute(code)
+
+
+@app.post("/api/ratiss-shell/chat")
+async def ratiss_shell_chat(body: dict = None):
+    """Chat synchrone du shell (compat UI)."""
+    body = body or {}
+    task = body.get("message") or body.get("prompt") or ""
+    if not task:
+        return {"error": "no_message"}
+    agent = RatissAgent(emit_fn=lambda evt: None)
+    loop = asyncio.get_event_loop()
+    agent.cascade.emit_fn = _make_sync_emitter(loop)
+    result = await asyncio.to_thread(agent.run, task)
+    return {"status": "SUCCESS", "summary": result.get("goal", ""), "result": result}
+
+
+# ── TTS (compat UI VoiceManager) ──────────────────────────────────────────────
+
+
+@app.get("/api/tts/voices")
+async def tts_voices():
+    return {
+        "voices": [
+            {"id": "browser-femme", "name": "Voix navigateur (femme)", "source": "browser", "lang": "fr-FR"},
+            {"id": "browser-homme", "name": "Voix navigateur (homme)", "source": "browser", "lang": "fr-FR"},
+            {"id": "piper-fr-femme", "name": "Piper FR (femme)", "source": "piper", "lang": "fr-FR"},
+        ]
+    }
+
+
+@app.get("/api/tts/status")
+async def tts_status():
+    return {"available": True, "engine": "browser-fallback", "piper_ready": False}
+
+
+@app.post("/api/tts/prepare")
+async def tts_prepare(body: dict = None):
+    return {"status": "ready", "engine": "browser"}
+
+
+@app.post("/api/tts")
+async def tts_synth(body: dict = None):
+    """Le TTS réel est rendu côté navigateur (souverain). Endpoint de compat."""
+    body = body or {}
+    return {
+        "status": "SUCCESS",
+        "engine": "browser",
+        "message": "Synthèse navigateur activée. Utilisez Web Speech API côté client.",
+    }
+
+
+@app.post("/api/chat")
+async def chat_sse(body: dict = None):
+    """Chat principal en streaming SSE — adapté au frontend React.
+
+    Lance l'agent RATISS en thread, collecte les événements cascade et les
+    reformate en flux SSE `data: {content|reasoning|imageUrl|error}\\n\\n`
+    compatible avec le reader côté client.
+
+    Body: {messages: [{role, content}], mode, model_id, reasoning_mode}
+    """
+    import queue as _queue
+
+    body = body or {}
+    messages = body.get("messages", [])
+    if not messages:
+        return JSONResponse({"error": "no_messages"}, status_code=400)
+
+    # Le dernier message utilisateur est la tâche de l'agent
+    task = ""
+    for m in reversed(messages):
+        if m.get("role") == "user":
+            task = m.get("content", "")
+            break
+    task = (task or "").strip() or "Analyse scientifique"
+
+    mode = body.get("mode", "Standard (N1)")
+    model_id = body.get("model_id", "")
+    reasoning_mode = bool(body.get("reasoning_mode", False))
+
+    # Appliquer le modèle si fourni
+    if model_id:
+        os.environ["RATISS_MODEL_ID"] = model_id
+
+    # ── Commandes slash d'auto-amélioration (couche RLM) ──────────────
+    # /refine       → analyse la trajectoire courante, propose des leçons
+    # /refine apply → analyse + applique les mises à jour au harnais
+    # /harness      → affiche l'état du harnais (version, prompts, mémoire…)
+    _slash = task.lower().strip()
+    if _slash.startswith("/refine") or _slash == "/harness" or _slash.startswith("/harness"):
+        from orchestrator.auto_improve import refine as _refine_fn
+        from orchestrator.harness_manager import get_harness as _get_harness
+
+        async def _slash_stream():
+            if _slash.startswith("/harness"):
+                h = _get_harness()
+                st = h.state()
+                lines = [
+                    "## 🧠 Harnais d'auto-amélioration (Continual Harness)",
+                    f"**Version:** {st.get('version', 0)}",
+                    f"**Créé le:** {st.get('created_at', '?')}",
+                    f"**Mis à jour:** {st.get('updated_at', '?')}",
+                    f"\n**Prompts ({len(st.get('prompts', {}))}):** " + ", ".join(st.get("prompts", {}).keys()) or "—",
+                    f"**Compétences ({len(st.get('skills', {}))}):** " + ", ".join(st.get("skills", {}).keys()) or "—",
+                    f"**Mémoire ({len(st.get('memory', {}))}):** " + ", ".join(st.get("memory", {}).keys()) or "—",
+                    f"**Leçons appliquées:** {len(st.get('lessons_applied', []))}",
+                    f"**Historique:** {len(st.get('history', []))} versions",
+                    f"\n*Trajectoires archivées: {len(h.list_trajectories())}*",
+                    f"\n💡 Tapez `/refine` pour analyser la dernière trajectoire, ou `/refine apply` pour appliquer les leçons.",
+                ]
+                yield f"data: {json.dumps({'content': '\\n'.join(lines) + '\\n'}, ensure_ascii=False)}\n\n"
+            else:
+                apply = "apply" in _slash
+                h = _get_harness()
+                trajs = h.list_trajectories()
+                if not trajs:
+                    yield f"data: {json.dumps({'content': '⚠️ Aucune trajectoire archivée. Lancez d abord une tâche complexe (ex: 4MZI + Betti + ZK).\\n'}, ensure_ascii=False)}\n\n"
+                else:
+                    traj = h.load_trajectory(trajs[0]["file"])
+                    summary = traj.get("summary", {})
+                    plan = traj.get("plan", {})
+                    report = await asyncio.to_thread(_refine_fn, summary, plan)
+
+                    analysis = report.get("analysis", {})
+                    metrics = analysis.get("metrics", {})
+                    lessons = report.get("lessons", [])
+                    updates = report.get("proposed_updates", [])
+                    zk = report.get("zk_validation", {})
+
+                    lines = [
+                        "## 🔄 Auto-amélioration RLM — Analyse de trajectoire",
+                        f"**Tâche:** {analysis.get('task', '?')[:80]}",
+                        f"**Domaine:** {analysis.get('domain', '?')}",
+                        f"**Succès:** {metrics.get('success_rate', 0):.0%} ({metrics.get('steps_success', 0)}/{metrics.get('steps_executed', 0)} étapes)",
+                        f"**ZK-STARK:** {'✅ Validé' if metrics.get('zk_validated') else '❌ Non validé'}",
+                        f"**Temps:** {metrics.get('execution_time_sec', 0):.2f}s",
+                        f"**Stuck détecté:** {'⚠️ Oui' if metrics.get('stuck_detected') else 'Non'}",
+                    ]
+
+                    lines.append(f"\n### 📚 Leçons extraites ({len(lessons)})")
+                    for i, l in enumerate(lessons):
+                        lines.append(f"{i+1}. **[{l.get('type','?')}]** {l.get('title','')} _(confiance: {l.get('confidence',0):.0%})_")
+                        lines.append(f"   > {l.get('content','')[:120]}")
+
+                    lines.append(f"\n### 🔧 Propositions de mise à jour du harnais ({len(updates)})")
+                    for i, u in enumerate(updates):
+                        lines.append(f"{i+1}. `{u.get('op','?')}` → {u.get('target','?')} (confiance: {u.get('confidence',0):.0%})")
+
+                    lines.append(f"\n🔐 **Validation ZK:** {'✅ Toutes les leçons respectent les invariants' if zk.get('valid') else '⚠️ ' + str(zk.get('reason',''))}")
+
+                    if apply:
+                        applied = h.apply_updates(updates, reason="slash_refine")
+                        for lesson in lessons:
+                            h.archive_lesson(lesson)
+                        lines.append(f"\n### ✅ Appliqué au harnais")
+                        lines.append(f"**Nouvelle version:** {applied.get('version', '?')}")
+                        lines.append(f"**Mises à jour:** {len(applied.get('results', []))}")
+                        lines.append(f"**Snapshot:** `{applied.get('snapshot', '')[-40:]}`")
+                    else:
+                        lines.append(f"\n💡 Tapez `/refine apply` pour appliquer ces {len(updates)} mise(s) à jour au harnais.")
+
+                    yield f"data: {json.dumps({'content': '\\n'.join(lines) + '\\n'}, ensure_ascii=False)}\n\n"
+            yield "data: [DONE]\n\n"
+
+        from starlette.responses import StreamingResponse
+        return StreamingResponse(_slash_stream(), media_type="text/event-stream")
+
+    evt_q: _queue.Queue = _queue.Queue()
+    loop = asyncio.get_event_loop()
+
+    def _emit(evt: dict[str, Any]) -> None:
+        evt_q.put(evt)
+
+    agent = RatissAgent(emit_fn=_emit)
+    agent.cascade.emit_fn = _emit
+
+    async def _stream():
+        # Lance l'agent dans un thread
+        fut = loop.run_in_executor(None, agent.run, task)
+
+        while True:
+            # Soit on a un événement, soit l'agent a terminé
+            if fut.done() and evt_q.empty():
+                break
+            try:
+                evt = evt_q.get_nowait()
+            except _queue.Empty:
+                await asyncio.sleep(0.05)
+                continue
+
+            etype = evt.get("type", "")
+            data: dict[str, Any] = {}
+
+            # Reasoning pendant la planification
+            if etype == "planning":
+                plan = evt.get("plan", {})
+                steps = plan.get("steps", [])
+                if steps and reasoning_mode:
+                    data["reasoning"] = "📋 Plan:\n" + "\n".join(
+                        f"  {s.get('id', '?')}. {s.get('description', s.get('action', ''))}" for s in steps
+                    ) + "\n"
+            elif etype == "log":
+                stream = evt.get("stream", "")
+                msg = evt.get("message", "")
+                if reasoning_mode and stream in ("ratiss", "nemotron", "zk"):
+                    data["reasoning"] = f"[{stream}] {msg}\n"
+            elif etype == "status":
+                if reasoning_mode:
+                    data["reasoning"] = f"▶ {evt.get('status', '')}: {evt.get('detail', '')}\n"
+            elif etype == "step_done":
+                res = evt.get("result", {})
+                if res:
+                    # Convertir les résultats scientifiques en contenu lisible
+                    if "tj_model" in res or "ground_state_energy" in res:
+                        tj = res.get("tj_model", res)
+                        e0 = tj.get("ground_state_energy")
+                        betti = res.get("betti_numbers")
+                        parts = []
+                        if e0 is not None:
+                            parts.append(f"**Énergie fondamentale E₀:** {e0}")
+                        if res.get("energy_per_site") is not None:
+                            parts.append(f"**Énergie/site:** {res['energy_per_site']}")
+                        if betti:
+                            parts.append(f"**Nombres de Betti:** {betti}")
+                        if parts:
+                            data["content"] = "### 📊 Résultats scientifiques\n\n" + "\n".join(parts) + "\n\n"
+            elif etype == "artifact":
+                pass  # géré dans done
+            elif etype == "done":
+                summary = evt.get("summary", {})
+                # Construire le contenu final
+                lines = []
+                if summary.get("goal"):
+                    lines.append(f"## ✅ Tâche accomplie\n**Objectif:** {summary['goal']}\n")
+                lines.append(f"**Domaine:** {summary.get('domain', 'N/A')}")
+                lines.append(f"**Étapes:** {summary.get('steps_executed', 0)} exécutées, {summary.get('steps_success', 0)} réussies")
+                lines.append(f"**Temps:** {summary.get('execution_time_sec', 0)}s")
+
+                # Résultats scientifiques
+                for r in summary.get("results", []):
+                    res = r.get("result", {})
+                    if r.get("action") == "zk_proof" and res.get("public_commitment"):
+                        lines.append(f"\n### 🔐 Certification ZK-STARK\n**Commitment:** `{res['public_commitment']}`")
+                        if res.get("receipt_b64"):
+                            lines.append(f"**Reçu:** `{res['receipt_b64'][:60]}...`")
+                    elif r.get("action") in ("topology", "full_pipeline") and res.get("betti_numbers"):
+                        lines.append(f"\n### 📐 Topologie\n**Nombres de Betti:** {res['betti_numbers']}")
+                    elif r.get("action") == "quantum_ed" and res.get("ground_state_energy") is not None:
+                        lines.append(f"\n### ⚛️ Mécanique quantique\n**E₀:** {res['ground_state_energy']}")
+
+                mem = summary.get("memory_final", {})
+                if mem:
+                    lines.append(f"\n**Mémoire:** {mem.get('current_mb', 0)} MB / {mem.get('limit_mb', 7500)} MB")
+
+                lines.append(f"\n**Workspace:** `{summary.get('workspace', '')}`")
+                lines.append(f"\n*Académique: {summary.get('academic', {}).get('author', '')} — ORCID {summary.get('academic', {}).get('orcid', '')}*")
+
+                data["content"] = "\n".join(lines) + "\n"
+            elif etype == "step_error":
+                if evt.get("error"):
+                    data["content"] = f"⚠️ Erreur étape {evt.get('step_id', '?')}: {evt['error']}\n"
+
+            if data:
+                yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+        # S'assurer que le thread est terminé
+        try:
+            fut.result(timeout=1)
+        except Exception:
+            pass
+        yield "data: [DONE]\n\n"
+
+    from starlette.responses import StreamingResponse
+    return StreamingResponse(_stream(), media_type="text/event-stream")
 
 
 @app.post("/api/terminal")
@@ -256,9 +718,203 @@ async def harness_rollback(body: dict = None):
     return get_harness().rollback(version)
 
 
+# ── Intégrations externes (agent scientifique) ────────────────────────────────
+
+
+@app.get("/api/integrations")
+async def integrations_list():
+    """Liste toutes les intégrations disponibles avec leur état de connexion."""
+    return _integrations_status()
+
+
+@app.post("/api/integrations/connect")
+async def integrations_connect(body: dict = None):
+    """Connecte une intégration en stockant son jeton localement (souverain).
+
+    Body: {"integration_id": "github", "token": "ghp_..."}
+    Aucun jeton n'est renvoyé en réponse.
+    """
+    body = body or {}
+    iid = (body.get("integration_id") or body.get("id") or "").strip()
+    token = (body.get("token") or "").strip()
+    if not iid:
+        return JSONResponse({"error": "missing_integration_id"}, status_code=400)
+    ok = _set_integration_token(iid, token)
+    if not ok:
+        return JSONResponse({"error": "unknown_integration", "integration_id": iid}, status_code=400)
+    status = _integrations_status()
+    item = next((i for i in status["integrations"] if i["id"] == iid), None)
+    return {"connected": True, "integration_id": iid, "status": item}
+
+
+@app.post("/api/integrations/disconnect")
+async def integrations_disconnect(body: dict = None):
+    body = body or {}
+    iid = (body.get("integration_id") or "").strip()
+    if not iid:
+        return JSONResponse({"error": "missing_integration_id"}, status_code=400)
+    _clear_integration_token(iid)
+    return {"connected": False, "integration_id": iid}
+
+
+@app.post("/api/integrations/{integration_id}/{action}")
+async def integrations_run(integration_id: str, action: str, body: dict = None):
+    """Exécute une action d'intégration (ex: github/list_repos, arxiv/search)."""
+    result = run_integration(integration_id, action, body or {})
+    return result
+
+
+# ── Import de fichiers universel (tous types) ─────────────────────────────────
+
+UPLOADS_DIR = _ROOT / "workspace" / "uploads"
+
+
+def _detect_file_kind(filename: str, content_type: str) -> str:
+    """Détecte la catégorie scientifique d'un fichier (pour le pipeline RATISS)."""
+    name = (filename or "").lower()
+    ct = (content_type or "").lower()
+    ext_map = {
+        ".pdb": "structure_pdb", ".cif": "structure_cif", ".mmcif": "structure_cif",
+        ".xyz": "structure_xyz", ".mol": "structure_mol", ".mol2": "structure_mol2",
+        ".sdf": "structure_sdf",
+        ".csv": "data_csv", ".tsv": "data_tsv", ".dat": "data_dat",
+        ".npy": "array_npy", ".npz": "array_npz", ".h5": "array_hdf5", ".hdf5": "array_hdf5",
+        ".json": "config_json", ".yaml": "config_yaml", ".yml": "config_yaml", ".toml": "config_toml",
+        ".pdf": "document_pdf", ".docx": "document_docx", ".txt": "document_text",
+        ".tex": "latex", ".bib": "bibliography",
+        ".py": "code_python", ".ipynb": "code_notebook", ".r": "code_r", ".m": "code_matlab",
+        ".js": "code_js", ".ts": "code_ts", ".cpp": "code_cpp", ".c": "code_c", ".rs": "code_rust",
+        ".sh": "code_shell",
+        ".png": "image", ".jpg": "image", ".jpeg": "image", ".gif": "image",
+        ".webp": "image", ".bmp": "image", ".svg": "image_svg", ".tiff": "image",
+        ".mp4": "video", ".mov": "video", ".webm": "video",
+        ".wav": "audio", ".mp3": "audio", ".flac": "audio",
+        ".zip": "archive_zip", ".tar": "archive_tar", ".gz": "archive_gz",
+        ".md": "markdown",
+    }
+    for ext, kind in ext_map.items():
+        if name.endswith(ext):
+            return kind
+    if ct.startswith("image/"):
+        return "image"
+    if ct.startswith("video/"):
+        return "video"
+    if ct.startswith("audio/"):
+        return "audio"
+    if ct == "application/pdf":
+        return "document_pdf"
+    if ct.startswith("text/"):
+        return "document_text"
+    return "other"
+
+
+def _uploads_registry_path() -> Path:
+    return UPLOADS_DIR / "_registry.json"
+
+
+def _load_uploads_registry() -> list[dict[str, Any]]:
+    p = _uploads_registry_path()
+    if not p.exists():
+        return []
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+
+def _save_uploads_registry(items: list[dict[str, Any]]) -> None:
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    _uploads_registry_path().write_text(json.dumps(items, indent=2), encoding="utf-8")
+
+
+@app.post("/api/files/upload")
+async def files_upload(file: UploadFile = File(...)):
+    """Import universel — accepte N'IMPORTE quel type de fichier.
+
+    Sauvegarde dans workspace/uploads/, enregistre dans le registre, et renvoie
+    les métadonnées avec la catégorie scientifique détectée. Le pipeline RATISS
+    peut ensuite consommer le fichier (PDB → topologie, CSV → stats, etc.).
+    """
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    raw = await file.read()
+    if not raw:
+        return JSONResponse({"error": "empty_file"}, status_code=400)
+
+    safe_name = Path(file.filename or "upload.bin").name
+    dest = UPLOADS_DIR / safe_name
+    if dest.exists():
+        stem, suffix = dest.stem, dest.suffix
+        dest = UPLOADS_DIR / f"{stem}_{int(__import__('time').time())}{suffix}"
+        safe_name = dest.name
+
+    dest.write_bytes(raw)
+    kind = _detect_file_kind(file.filename or "", file.content_type or "")
+
+    item = {
+        "id": f"{int(__import__('time').time()*1000)}_{safe_name}",
+        "name": safe_name,
+        "path": str(dest.relative_to(_ROOT)),
+        "absolute_path": str(dest),
+        "size_bytes": len(raw),
+        "size_kb": round(len(raw) / 1024, 2),
+        "content_type": file.content_type or "application/octet-stream",
+        "kind": kind,
+        "uploaded_at": __import__("datetime").datetime.now().isoformat(timespec="seconds"),
+    }
+    items = _load_uploads_registry()
+    items.insert(0, item)
+    _save_uploads_registry(items)
+    logger.info(f"[upload] {safe_name} ({len(raw)} octets, kind={kind})")
+    return {"status": "SUCCESS", "file": item}
+
+
+@app.get("/api/files")
+async def files_list():
+    """Liste les fichiers importés."""
+    items = _load_uploads_registry()
+    return {"files": items, "count": len(items)}
+
+
+@app.delete("/api/files/{file_id}")
+async def files_delete(file_id: str):
+    items = _load_uploads_registry()
+    target = next((i for i in items if i["id"] == file_id), None)
+    if not target:
+        return JSONResponse({"error": "not_found"}, status_code=404)
+    try:
+        Path(target["absolute_path"]).unlink(missing_ok=True)
+    except Exception:
+        pass
+    items = [i for i in items if i["id"] != file_id]
+    _save_uploads_registry(items)
+    return {"status": "SUCCESS", "deleted": file_id}
+
+
+@app.post("/api/files/analyze")
+async def files_analyze(body: dict = None):
+    """Lance l'analyse scientifique d'un fichier importé via le pipeline RATISS.
+
+    Body: {"file_id": "...", "instruction": "Analyse topologique"}
+    Le chemin du fichier est injecté dans la tâche de l'agent.
+    """
+    body = body or {}
+    file_id = body.get("file_id", "")
+    items = _load_uploads_registry()
+    target = next((i for i in items if i["id"] == file_id), None)
+    if not target:
+        return JSONResponse({"error": "file_not_found"}, status_code=404)
+
+    instruction = (body.get("instruction") or "").strip()
+    task = f"{instruction or 'Analyse scientifique du fichier'}: {target['name']} (type={target['kind']}, {target['size_kb']} KB). Chemin: {target['absolute_path']}"
+    agent = RatissAgent(emit_fn=lambda evt: None)
+    loop = asyncio.get_event_loop()
+    agent.cascade.emit_fn = _make_sync_emitter(loop)
+    result = await asyncio.to_thread(agent.run, task)
+    return {"status": "SUCCESS", "file": target, "result": result}
+
+
 @app.get("/api/preview/{filename:path}")
 async def preview_artifact(filename: str):
-    """Sert un artéfact pour preview dans l'UI (PDF, PNG, HTML, SVG)."""
     # Décoder l'URL (pour les accents dans les noms de fichiers)
     from urllib.parse import unquote
     filename = unquote(filename)

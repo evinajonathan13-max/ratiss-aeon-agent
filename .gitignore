@@ -51,3 +51,9 @@ workspace/*.svg
 # (trajectoires, leçons archivées, snapshots versionnés, état courant)
 harness/
 !harness/.gitkeep
+
+# Frontend React (build artefacts et deps)
+app/frontend/node_modules/
+app/frontend/dist/
+app/static/assets/
+app/static/index.html
