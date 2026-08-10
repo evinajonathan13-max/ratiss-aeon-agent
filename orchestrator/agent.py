@@ -71,6 +71,92 @@ class RatissAgent:
         self.cascade.artifact(name, str(path.relative_to(_ROOT)), kind=kind, size_bytes=path.stat().st_size)
         return str(path)
 
+    def _enrich_scientific_report(self, task: str, results: list[dict[str, Any]]) -> dict[str, Any] | None:
+        """Génère un rapport PDF scientifique enrichi : structure PDB + topologie
+        (Betti) + graphique de visualisation intégré.
+
+        Contrairement au PDF générique (sections vides) produit par le planificateur
+        local, ce rapport assemble les vrais résultats d'exécution : métadonnées
+        PDB, nombres de Betti, invariant topologique, et un graphique des nombres
+        de Betti embarqué comme image.
+        """
+        from tools.content_generator import generate_pdf, generate_chart
+
+        # Collecter les résultats pertinents
+        pdb_res = next((r.get("result", {}) for r in results if r.get("action") == "load_pdb" and "error" not in r), {})
+        topo_res = next((r.get("result", {}) for r in results if r.get("action") == "topology" and "error" not in r), {})
+        pipeline_res = next((r.get("result", {}) for r in results if r.get("action") == "full_pipeline" and "error" not in r), {})
+
+        # Topologie peut venir de topology ou full_pipeline (clés tj_model/convergence)
+        betti = topo_res.get("betti_numbers") or pipeline_res.get("betti_numbers") or []
+        invariant = topo_res.get("invariant_hash") or pipeline_res.get("invariant_hash", "")
+
+        # S'il n'y a ni PDB ni topologie, rien à enrichir
+        if not pdb_res and not betti:
+            return None
+
+        # 1. Graphique de visualisation : nombres de Betti par dimension
+        chart_path = None
+        if betti:
+            chart = generate_chart(
+                {"labels": [f"dim {i}" for i in range(len(betti))], "values": betti},
+                kind="bar",
+                title="Nombres de Betti par dimension",
+                output_dir=self.workspace,
+            )
+            chart_path = chart.get("path") or chart.get("filename")
+            if chart_path and not os.path.isabs(chart_path):
+                chart_path = str(_ROOT / chart_path)
+
+        # 2. Sections du rapport
+        sections: list[dict[str, Any]] = []
+        if pdb_res:
+            sections.append({
+                "heading": "1. Structure PDB analysee",
+                "content": (
+                    f"Identifiant PDB: {pdb_res.get('pdb_id', 'N/A')}\n"
+                    f"Fichier local: {pdb_res.get('filename', 'N/A')}\n"
+                    f"Taille: {pdb_res.get('size_kb', 'N/A')} Ko\n"
+                    f"Chemin: {pdb_res.get('path', 'N/A')}\n"
+                    f"Statut: {pdb_res.get('status', 'N/A')}"
+                ),
+                "kind": "text",
+            })
+        if betti:
+            sections.append({
+                "heading": "2. Analyse topologique (homologie persistante)",
+                "content": (
+                    f"Nombres de Betti: {betti}\n"
+                    f"  - b0 (composantes connexes): {betti[0] if len(betti) > 0 else 'N/A'}\n"
+                    f"  - b1 (trous 1D / cycles): {betti[1] if len(betti) > 1 else 'N/A'}\n"
+                    f"  - b2 (cavites 2D): {betti[2] if len(betti) > 2 else 'N/A'}\n"
+                    f"Invariant (hash topologique): {invariant or 'N/A'}"
+                ),
+                "kind": "text",
+            })
+        if chart_path and os.path.exists(chart_path):
+            sections.append({
+                "heading": "3. Visualisation : nombres de Betti",
+                "content": chart_path,
+                "kind": "image",
+            })
+        sections.append({
+            "heading": "4. Synthese",
+            "content": (
+                f"Tache: {task[:200]}\n"
+                f"Nombre d'etapes executees: {sum(1 for r in results if 'error' not in r)}/{len(results)} reussies\n"
+                f"Le rapport combine la structure PDB analysee avec son analyse "
+                f"topologique (nombres de Betti) et une visualisation graphique."
+            ),
+            "kind": "text",
+        })
+
+        title = "Rapport scientifique - Structure PDB et topologie"
+        pdf = generate_pdf(title, sections, output_dir=self.workspace)
+        self.cascade.log(f"[Artifact] Rapport PDF enrichi genere: {pdf.get('filename')} ({pdf.get('size_bytes')} octets, {pdf.get('sections_count', 0)} sections)", stream="ratiss")
+        return pdf
+
+
     def run(self, task: str) -> dict[str, Any]:
         """Boucle complète : Plan → Execute → Certify → Artifacts."""
         t_start = time.time()
@@ -200,6 +286,15 @@ class RatissAgent:
         for r in results:
             if r.get("action") == "zk_proof" and r.get("result", {}).get("receipt_b64"):
                 self._save_artifact("zk_receipt.b64", r["result"])
+
+        # 4b. RAPPORT ENRICHI — si un rapport est demandé et qu'on dispose de
+        # données PDB/topologie, générer un PDF qui assemble la structure PDB +
+        # les nombres de Betti + un graphique de visualisation intégré.
+        if any(k in task.lower() for k in ("rapport", "pdf", "report", "document")):
+            try:
+                self._enrich_scientific_report(task, results)
+            except Exception as e:
+                logger.warning(f"[AGENT] Rapport enrichi echoue: {e}")
 
         # 5. ARTIFACTS — résumé final
         summary = {

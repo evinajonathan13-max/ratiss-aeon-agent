@@ -139,6 +139,9 @@ python -m pytest tests/           # tests pipeline
 5. **fpdf2** : caractères non latin-1 (em-dash —) → `_sanitize()` remplace par ASCII
 6. **Terminal** : use `subprocess.Popen` avec `bufsize=1` pour streaming ligne par ligne
 7. **arXiv API** : retourne Atom XML, parser avec `xml.etree.ElementTree` (namespace `{http://www.w3.org/2005/Atom}`)
+8. **Dispatch intégrations** : `run_integration()` dans `integration_actions.py` doit lister TOUTES les intégrations déclarées dans `integrations.py`, sinon `unknown_integration` (bug "banque" RCSB PDB corrigé)
+9. **generate_pdf** supporte `kind: "image"` (content = chemin fichier) pour embarquer graphiques/diagrammes dans le rapport
+10. **Docker healthcheck** : l'image n'installe PAS `curl` — utiliser `python -c "urllib.request.urlopen(...)"` (cf. Dockerfile + docker-compose.yml)
 
 ## Sécurité terminal
 - Allowlist : git, pip, python, curl, wget, ls, cat, grep, find, tar, npm, node, dot, echo, head, tail, wc
@@ -146,13 +149,15 @@ python -m pytest tests/           # tests pipeline
 - Timeout : 30s max par commande
 - Working dir : workspace de la session isolée
 
-## Tests validés (13/13/2026)
-- Full pipeline 4MZI + Betti + PDF + Chart + ZK : 5/5 étapes, 2.1s
-- arXiv "t-J model Lanczos" : 5 résultats
-- Terminal WebSocket streaming : git --version, pip list (stdout ligne par ligne)
-- `rm -rf /` : BLOQUÉ
-- Preview PDF : HTTP 200, application/pdf, 1589 bytes
-- E₀ t-J 4×4 : -3.513677
+## Tests validés (10/08/2026)
+- 19/19 tests pytest passent (10 auto_improve + 9 agentique_pdb_pdf)
+- Bug "banque" RCSB PDB : dispatch corrigé, fetch réel 4MZI OK (titre/méthode/résolution/download_url)
+- Endpoint `/api/headless-browse` : ajouté (frontend InteractiveTerminal ne fait plus 404)
+- Endpoint `/api/tts/download` : ajouté (bouton sync TTS ne fait plus 404)
+- Pipeline agentique complet : Plan → load_pdb → topology → PDF enrichi → ZK, 4/4 étapes
+- Rapport PDF enrichi : structure PDB 4MZI + nombres de Betti + graphique de visualisation embarqué (21286 octets en Docker avec image PNG)
+- Build Docker : OK (frontend React + backend Python), conteneur démarre, /api/health 200
+- Healthcheck Docker corrigé (python urllib au lieu de curl absent de l'image)
 - ZK-STARK : vérifié 0.8ms
 
 ## Notes techniques additionnelles

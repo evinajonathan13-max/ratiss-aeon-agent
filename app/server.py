@@ -587,6 +587,25 @@ async def tts_prepare(body: dict = None):
     return {"status": "ready", "engine": "browser"}
 
 
+@app.post("/api/tts/download")
+async def tts_download(body: dict = None):
+    """Synchronisation des voix TTS — compat frontend SystemStatus.
+
+    Le TTS est rendu côté navigateur (souverain, Web Speech API). Aucune
+    voix n'est téléchargée côté serveur ; on renvoie un statut prêt pour que
+    le bouton « sync » du frontend ne plante pas (404) et que le poll de
+    status repasse en mode idle.
+    """
+    return {
+        "status": "ready",
+        "engine": "browser-fallback",
+        "available": True,
+        "piper_ready": False,
+        "isDownloading": False,
+        "message": "TTS navigateur activé (souverain). Aucun téléchargement requis.",
+    }
+
+
 @app.post("/api/tts")
 async def tts_synth(body: dict = None):
     """Le TTS réel est rendu côté navigateur (souverain). Endpoint de compat."""
@@ -833,6 +852,54 @@ async def terminal_exec(command: str = "", cwd: str = ""):
     te = TerminalExecutor(cwd=Path(cwd) if cwd else None)
     r = te.execute(command)
     return r
+
+
+@app.get("/api/headless-browse")
+async def headless_browse(url: str = ""):
+    """Rendu headless d'une URL (fetch + extraction texte/titre/liens).
+
+    Réponse attendue par le frontend InteractiveTerminal (ChromeniumBrowser) :
+    {status, url, title, text_summary, total_links_found, links, error}
+    """
+    import re as _re
+    if not url:
+        return {"status": "failed", "url": "", "title": "",
+                "text_summary": "", "total_links_found": 0, "links": [],
+                "error": "missing_url"}
+    from tools.web_client import _fetch_raw
+    try:
+        status, body, _headers = _fetch_raw(url)
+    except Exception as e:
+        return {"status": "failed", "url": url, "title": "Erreur de connexion",
+                "text_summary": "", "total_links_found": 0, "links": [],
+                "error": str(e)}
+    if status == 0:
+        return {"status": "failed", "url": url, "title": "Erreur de connexion",
+                "text_summary": "", "total_links_found": 0, "links": [],
+                "error": body.decode("utf-8", errors="replace")}
+    html = body.decode("utf-8", errors="replace")
+    # Titre
+    title = ""
+    m = _re.search(r"<title[^>]*>(.*?)</title>", html, _re.IGNORECASE | _re.DOTALL)
+    if m:
+        title = _re.sub(r"\s+", " ", m.group(1)).strip()
+    # Liens <a href="...">
+    links = list(dict.fromkeys(_re.findall(r'<a\s+[^>]*href=["\']([^"\']+)["\']', html, _re.IGNORECASE)))
+    # Texte nettoyé
+    text = _re.sub(r"<script[^>]*>.*?</script>", "", html, flags=_re.DOTALL | _re.IGNORECASE)
+    text = _re.sub(r"<style[^>]*>.*?</style>", "", text, flags=_re.DOTALL | _re.IGNORECASE)
+    text = _re.sub(r"<[^>]+>", " ", text)
+    text = _re.sub(r"\s+", " ", text).strip()
+    ok = (status == 200)
+    return {
+        "status": "success" if ok else "failed",
+        "url": url,
+        "title": title,
+        "text_summary": text[:5000],
+        "total_links_found": len(links),
+        "links": links[:50],
+        "error": None if ok else f"HTTP {status}",
+    }
 
 
 @app.post("/api/browser")

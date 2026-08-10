@@ -306,7 +306,17 @@ def generate_pdf(title: str, sections: list[dict[str, Any]], output_dir: Path | 
         if isinstance(content, (dict, list)):
             content = json.dumps(content, indent=2, default=str, ensure_ascii=False)
 
-        pdf.multi_cell(0, 5, _sanitize(str(content)))
+        if kind == "image":
+            # Insertion d'une image (graphique/diagramme) dans le PDF
+            img_path = str(content)
+            try:
+                # Contenu largeur adaptée (max 190 mm), garde l'aspect ratio
+                pdf.image(img_path, x=10, w=190)
+            except Exception as img_err:
+                pdf.set_text_color(200, 120, 120)
+                pdf.multi_cell(0, 5, _sanitize(f"[Image indisponible: {img_err}]"))
+        else:
+            pdf.multi_cell(0, 5, _sanitize(str(content)))
         pdf.ln(4)
 
     # Pied de page

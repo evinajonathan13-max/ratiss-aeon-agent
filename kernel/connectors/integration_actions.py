@@ -308,6 +308,95 @@ def crossref_action(action: str, params: dict[str, Any]) -> dict[str, Any]:
     return {"error": "unknown_action", "action": action}
 
 
+# ── RCSB PDB (banque mondiale de structures 3D) ──────────────────────────────
+
+def rcsb_search(query: str, max_results: int = 10) -> dict[str, Any]:
+    """Recherche de structures dans la banque RCSB PDB."""
+    q = urllib.parse.quote(query)
+    url = (
+        "https://search.rcsb.org/rcsbsearch/v2/query?json="
+        + urllib.parse.quote(
+            json.dumps({
+                "query": {"type": "group", "logical_operator": "and",
+                           "nodes": [{"type": "terminal", "service": "full_text", "parameters": {"value": query}}]},
+                "return_type": "entry",
+                "request_options": {"paginate": {"start": 0, "rows": max_results}},
+            })
+        )
+    )
+    return _http_get(url)
+
+
+def rcsb_fetch_structure(pdb_id: str) -> dict[str, Any]:
+    """Récupère les métadonnées d'une structure PDB + l'URL de téléchargement CIF/PDB."""
+    pid = (pdb_id or "").upper()
+    if not pid:
+        return {"pdb_id": "", "error": "missing_pdb_id", "data": None}
+    base = f"https://data.rcsb.org/rest/v1/core/entry/{pid}"
+    try:
+        data = _http_get(base)
+    except Exception as e:
+        return {"pdb_id": pid, "error": f"HTTP_error: {e}", "data": None}
+    if not isinstance(data, dict) or "_raw" in data:
+        return {"pdb_id": pid, "error": "non_json_response", "data": None}
+    return {
+        "pdb_id": pid,
+        "title": (data.get("struct") or {}).get("title", ""),
+        "method": (data.get("exptl") or [{}])[0].get("method", "") if data.get("exptl") else "",
+        "resolution": (data.get("rcsb_entry_info") or {}).get("resolution_combined", [None])[0],
+        "organism": (data.get("rcsb_entity_source_organism") or [{}])[0].get("ncbi_scientific_name", ""),
+        "url": f"https://www.rcsb.org/structure/{pid}",
+        "download_url": f"https://files.rcsb.org/download/{pid}.cif",
+        "pdb_download_url": f"https://files.rcsb.org/download/{pid}.pdb",
+        "data": data,
+        "error": None,
+    }
+
+
+def rcsb_pdb_action(action: str, params: dict[str, Any]) -> dict[str, Any]:
+    if action == "search":
+        return rcsb_search(params.get("query", ""), max_results=int(params.get("max_results", 10)))
+    if action == "fetch_structure":
+        return rcsb_fetch_structure(params.get("pdb_id", params.get("id", "")))
+    return {"error": "unknown_action", "action": action}
+
+
+# ── Overleaf (collaboration LaTeX) ───────────────────────────────────────────
+
+def overleaf_list_projects(token: str) -> dict[str, Any]:
+    headers = {"Authorization": f"Bearer {token}"}
+    return _http_get("https://api.overleaf.com/v1/projects", headers=headers)
+
+
+def overleaf_push_latex(token: str, project_id: str, path: str, content: str) -> dict[str, Any]:
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    payload = {"path": path, "content": content}
+    return _http_post(f"https://api.overleaf.com/v1/projects/{project_id}/file", headers, payload)
+
+
+def overleaf_action(action: str, params: dict[str, Any]) -> dict[str, Any]:
+    token = params.get("token") or get_token("overleaf") or ""
+    if not token:
+        return {"error": "missing_token", "integration": "overleaf"}
+    if action == "list_projects":
+        return overleaf_list_projects(token)
+    if action == "push_latex":
+        return overleaf_push_latex(token, params.get("project_id", ""), params.get("path", ""), params.get("content", ""))
+    return {"error": "unknown_action", "action": action}
+
+
+# ── IBM Quantum (QPU) ───────────────────────────────────────────────────────
+
+def ibm_quantum_action(action: str, params: dict[str, Any]) -> dict[str, Any]:
+    token = params.get("token") or get_token("ibm_quantum") or ""
+    if not token:
+        return {"error": "missing_token", "integration": "ibm_quantum"}
+    if action == "list_backends":
+        headers = {"Authorization": f"Bearer {token}"}
+        return _http_get("https://api.quantum-computing.ibm.com/v1/backends", headers=headers)
+    return {"error": "unknown_action", "action": action}
+
+
 # ── Dispatcheur universel ─────────────────────────────────────────────────────
 
 def run_integration(integration_id: str, action: str, params: dict[str, Any]) -> dict[str, Any]:
@@ -318,6 +407,9 @@ def run_integration(integration_id: str, action: str, params: dict[str, Any]) ->
         "zenodo": zenodo_action,
         "openalex": openalex_action,
         "crossref": crossref_action,
+        "rcsb_pdb": rcsb_pdb_action,
+        "overleaf": overleaf_action,
+        "ibm_quantum": ibm_quantum_action,
     }
     fn = dispatch.get(integration_id)
     if not fn:
