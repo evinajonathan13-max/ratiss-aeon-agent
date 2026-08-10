@@ -171,14 +171,14 @@ export default function App() {
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [attachedImagePreview, setAttachedImagePreview] = useState<string | null>(null);
   const [attachedImportedFiles, setAttachedImportedFiles] = useState<ImportedFile[]>([]);
-  const [settingsInitialTab, setSettingsInitialTab] = useState<"models" | "agent" | "integrations" | "files" | "archives" | "bridge_ia">("models");
+  const [settingsInitialTab, setSettingsInitialTab] = useState<"models" | "agent" | "integrations" | "files" | "archives" | "bridge_ia" | "vault" | "skills">("models");
   const [isDragOverChat, setIsDragOverChat] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const universalInputRef = useRef<HTMLInputElement>(null);
 
-  const openSettingsWithTab = (tab: "archives" | "bridge_ia" | "files" | "integrations" | "models" | "agent") => {
+  const openSettingsWithTab = (tab: "archives" | "bridge_ia" | "files" | "integrations" | "models" | "agent" | "vault" | "skills") => {
     setSettingsInitialTab(tab);
     setShowSettingsBranch(true);
     setShowLab(false);

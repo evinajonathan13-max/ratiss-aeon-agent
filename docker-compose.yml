@@ -1,0 +1,75 @@
+# docker-compose.yml — RATISS Aeon Prime multi-environnements
+#
+# Usage:
+#   VPS / serveur :  docker compose up ratiss-server -d
+#   HuggingFace   :  docker compose up ratiss-hf -d      (port 7860)
+#   Dev local     :  docker compose up ratiss-dev -d     (port 12000, hot reload)
+#
+# Le vault de cles API est monte comme volume persistant (config/).
+# Les workspaces sont persistes dans workspace/.
+
+services:
+  # ── Serveur principal (VPS / production) ──────────────────────────────────
+  ratiss-server:
+    build: .
+    container_name: ratiss-server
+    ports:
+      - "${RATISS_PORT:-7860}:7860"
+    volumes:
+      - ./workspace:/app/workspace
+      - ./data:/app/data
+      - ./config:/app/config        # vault de cles API persistant
+    environment:
+      - RATISS_HOST=0.0.0.0
+      - RATISS_PORT=7860
+      - RATISS_RAM_LIMIT_MB=7500
+      - PYTHONUNBUFFERED=1
+      # Injectez vos cles via un .env file (non commite)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - IBM_QUANTUM_TOKEN=${IBM_QUANTUM_TOKEN:-}
+      - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Hugging Face Spaces (port 7860, ReadMe only) ─────────────────────────
+  ratiss-hf:
+    build: .
+    container_name: ratiss-hf
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    environment:
+      - RATISS_HOST=0.0.0.0
+      - RATISS_PORT=7860
+      - RATISS_RAM_LIMIT_MB=7500
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    profiles: ["huggingface"]
+
+  # ── Dev local (hot reload, port 12000) ───────────────────────────────────
+  ratiss-dev:
+    build: .
+    container_name: ratiss-dev
+    ports:
+      - "12000:7860"
+    volumes:
+      - .:/app
+      - /app/app/frontend/node_modules
+      - ./config:/app/config
+    environment:
+      - RATISS_HOST=0.0.0.0
+      - RATISS_PORT=7860
+      - RATISS_RAM_LIMIT_MB=7500
+      - PYTHONUNBUFFERED=1
+    command: python -m uvicorn app.server:app --host 0.0.0.0 --port 7860 --reload
+    restart: unless-stopped
+    profiles: ["dev"]

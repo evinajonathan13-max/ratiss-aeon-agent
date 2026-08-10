@@ -23,11 +23,15 @@ import {
   FlaskConical,
   Brain,
   ShieldCheck,
-  Save
+  Save,
+  KeyRound,
+  GitBranch
 } from "lucide-react";
 import { ChatSession, AgentOptions, ImportedFile } from "../types";
 import { IntegrationsPanel } from "./IntegrationsPanel";
 import { FileManager } from "./FileManager";
+import { ApiVaultPanel } from "./ApiVaultPanel";
+import { RepoSkillPanel } from "./RepoSkillPanel";
 
 interface SettingsBranchProps {
   sessions: ChatSession[];
@@ -39,7 +43,7 @@ interface SettingsBranchProps {
   initialTab?: SettingsTab;
 }
 
-type SettingsTab = "models" | "agent" | "integrations" | "files" | "archives" | "bridge_ia";
+type SettingsTab = "models" | "agent" | "integrations" | "files" | "archives" | "bridge_ia" | "vault" | "skills";
 
 const DEFAULT_AGENT_OPTIONS: AgentOptions = {
   memoryLimitMb: 7500,
@@ -331,6 +335,8 @@ export function SettingsBranch({
           { id: "files", icon: FileCode, label: "Fichiers" },
           { id: "archives", icon: Archive, label: "Archivage" },
           { id: "bridge_ia", icon: Link2, label: "Pont IA" },
+          { id: "vault", icon: KeyRound, label: "Vault API" },
+          { id: "skills", icon: GitBranch, label: "Compétences" },
         ] as const).map((tab) => (
           <button
             key={tab.id}
@@ -855,6 +861,18 @@ function ModelsTab({ isCompetitionBranch }: ModelsTabProps) {
           );
         })}
       </div>
+
+      {activeTab === "vault" && (
+        <div className="p-5 rounded-3xl bg-white/[0.01] border border-white/5">
+          <ApiVaultPanel />
+        </div>
+      )}
+
+      {activeTab === "skills" && (
+        <div className="p-5 rounded-3xl bg-white/[0.01] border border-white/5">
+          <RepoSkillPanel />
+        </div>
+      )}
     </div>
   );
 }
