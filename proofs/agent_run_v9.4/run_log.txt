@@ -1,0 +1,66 @@
+========================================================================
+TEST AGENTIQUE COMPLET RATISS v9.4 — LLM réel OpenRouter
+========================================================================
+
+[0] Fournisseurs LLM configurés :
+    anthropic    --  (AnthropicProvider)
+    google       --  (GeminiProvider)
+    openai       --  (OpenAIProvider)
+    openrouter   OK  (OpenRouterProvider)
+
+[1] Test identité souveraine (vrai LLM OpenRouter)...
+    Réponse LLM : Je m'appelle RATISS, instance souveraine JohnKing0, déployée localement sur ton nœud comme moteur de convergence autonome capable de résoudre et certifier des preuves physiques et mathématiques en toute indépendance.
+    -> Identité souveraine OK (Ratiss s'identifie, pas Nemotron)
+
+[2] Planification de la tâche par le LLM...
+    Tâche : Analyse scientifique de la protéine p53-MDM2 (PDB 4MZI). Étapes demandées : (1) charger la structure PDB 4MZI, (2) calcu...
+    Planificateur : openrouter_nemotron (30.0s)
+    Étapes LLM    : 4
+      - load_pdb : Charger la structure PDB 4MZI (p53-MDM2)
+      - topology : Calculer l'homologie persistante et les nombres de Betti (di
+      - generate_betti_diagram : Générer le diagramme de persistance / diagramme de Betti
+      - generate_pdf : Générer le rapport PDF scientifique complet
+    Domaine : topology
+
+[3] Exécution ReAct de l'agent Ratiss...
+[RATISS-QUANTUM-SOLVER] 2026-08-10 05:46:18,225 - Executing solve_persistent_homology [Initial RAM: 72.75 MB / Limit: 7500 MB]
+[RATISS-QUANTUM-SOLVER] 2026-08-10 05:46:18,226 - [TOPO-SOLVER] Calcul de l'homologie (Dim Max = 2) sur 500 points repères...
+[RATISS-QUANTUM-SOLVER] 2026-08-10 05:46:18,226 - [TOPO-SOLVER] GUDHI non disponible. Utilisation du résolveur natif RATISS (Fallback CPU-light).
+[RATISS-QUANTUM-SOLVER] 2026-08-10 05:46:18,388 - [TOPO-SOLVER] Succès Résolveur Natif. Nombres de Betti estimés: [1, 2, 0]
+[RATISS-QUANTUM-SOLVER] 2026-08-10 05:46:18,407 - Completed solve_persistent_homology [Final RAM: 87.21 MB]
+    Étapes exécutées : 4 (succès : 4)
+    Temps total : 15.859s
+    Workspace : workspace/b2cea29b903e
+
+[4] Téléchargement PDB réel 4MZI depuis RCSB...
+    PDB téléchargé : 4MZI.pdb (169776 octets)
+    1ère ligne PDB : HEADER    ANTITUMOR PROTEIN                       30-SEP-13   4MZI
+
+[5] Génération du rapport PDF final...
+    PDF : rapport_rapport_test_agentique_ratiss_.pdf (2456 octets)
+
+[6] Mémoire persistante...
+    Souvenirs : 2 | onboarded : False
+    Dernier souvenir : Tâche terminée (topology) : Analyse topologique complète de la protéine p53-MDM2 (PDB 4MZI) avec hom
+
+[7] Artefacts produits :
+    4MZI.pdb                                     169776 octets
+    betti_persistence_diagram.png                 27828 octets
+    rapport_analyse_topologique_p53-mdm2_(.pdf     1611 octets
+    rapport_rapport_test_agentique_ratiss_.pdf     2456 octets
+    result.json                                   44547 octets
+    step_2_topology.json                          28656 octets
+    zk_receipt.b64                                  828 octets
+
+========================================================================
+TEST AGENTIQUE COMPLET : TERMINE
+========================================================================
+{
+  "planner": "openrouter_nemotron",
+  "steps": 4,
+  "executed": 4,
+  "success": 4,
+  "workspace": "workspace/b2cea29b903e",
+  "pdf": "rapport_rapport_test_agentique_ratiss_.pdf",
+  "pdb": "4MZI.pdb"
+}

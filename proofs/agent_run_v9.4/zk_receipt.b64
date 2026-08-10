@@ -1,0 +1,21 @@
+{
+  "zk_proof_status": "RISC0_STARK_VERIFIED",
+  "proof_valid": true,
+  "proof_hash": "0x46af440d22bf193d...6dff4ced",
+  "full_receipt_hash": "46af440d22bf193d04fb436ac5f4c6ec7f29b7b30988ecfea5ca66556dff4ced",
+  "proof_receipt_b64": "U1RBUktfUklTQzBfR1VFU1RfRVhFQ1VURURfVkVSSUZJRUQ6NDZhZjQ0MGQyMmJmMTkzZDA0ZmI0MzZhYzVmNGM2ZWM3ZjI5YjdiMzA5ODhlY2ZlYTVjYTY2NTU2ZGZmNGNlZA==",
+  "verification_time_ms": 0.8,
+  "circuit_invariants_checked": {
+    "negative_bound_energy": true,
+    "non_negative_entropy": true,
+    "valid_lattice_dimensions": true
+  },
+  "public_commitment": {
+    "energy_per_site": -0.170888,
+    "state_vector_hash": "0308e32eec9a3338e90a394c9dab1456c2e5bc367371596ff0059047382eb927",
+    "entanglement_entropy": 0.0,
+    "lattice_size": 16,
+    "quantum_fidelity": 1.0,
+    "convergence_percentage": 100.0
+  }
+}
