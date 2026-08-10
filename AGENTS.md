@@ -7,7 +7,7 @@
 - **Source** : extension de `ratiss-kkl` (PR #1 merged)
 - **Version** : 9.3.0 (kernel ratiss_v9_aeon_prime) — UI React immersive + couche d'auto-amélioration RLM/Continual Harness
 
-## Architecture (23 skills + couche RLM)
+## Architecture (29 skills + couche RLM)
 - `kernel/` — Noyau scientifique RATISS V9 (main.py, bridge.py, solvers/, connectors/, core/, system/, zk/)
 - `orchestrator/` — Agent agentique avec **boucle ReAct** (agent.py, nemotron_client.py, skill_manager.py, cascade.py)
   - `llm_router.py` — **NOUVEAU v9.3.1** Routeur LLM multi-fournisseurs : Anthropic (Claude), Google (Gemini), OpenAI (GPT), OpenRouter (Nemotron + **tout modèle personnalisé saisi par l'utilisateur**) + fallback souverain local. `complete()`, `plan()`, `set_api_key()`, catalogue de 14 modèles. `_parse_model_id()` route via le préfixe (`openrouter/<n'importe-quel-id>`).
@@ -32,12 +32,27 @@
 - `security/` — Sessions, PBKDF2, isolation workspace, NemoSandbox
 - `screenshots/` — 4 captures d'écran (dashboard, arXiv+PDF, preview, terminal)
 
-## 23 compétences
+## 29 compétences
 - **6 scientifiques** : load_pdb, topology, quantum_ed, zk_proof, full_pipeline, tryperposition
-- **2 terminal** : terminal, git_clone
+- **4 red-team P vs NP (NOUVEAU)** : redteam_circuit (CircuitLowerBoundAttacker), redteam_tsp (TSPAlgoAttacker), impossibility_solver (Margolus-Levitin/Landauer/Bekenstein), redteam_full
+- **3 terminal** : terminal, git_clone (+ analyse auto de repo), repo_analyze, repo_register_skills
 - **6 web scientifique** : web_fetch, web_arxiv, web_pubmed, web_chembl, web_pdb, web_alphafold
 - **4 contenu** : generate_pdf, generate_chart, generate_webpage, generate_betti_diagram
 - **5 agent agentique (NOUVEAU v9.1)** : browser, python_execute, google_search, file_editor, file_saver
+
+## Vault de cles API persistant (v9.3.1 — environnement souverain)
+- `security/api_vault.py` — Coffre-fort chiffré au repos (Fernet/cryptography). Stockage dans `config/api_vault.json` + cle maitre `config/api_vault.key` (ne jamais committer).
+- **14 cles supportees** : anthropic, google, openai, openrouter, ibm_quantum, quandela, tavily, ncbi_api_key, alphafold_api_key, chembl_api_key, github_token, zenodo_token, overleaf_token, custom.
+- **Endpoints** : `GET /api/vault/keys`, `POST /api/vault/key`, `DELETE /api/vault/key`, `POST /api/vault/load`.
+- Chargement automatique au demarrage (startup event) dans `os.environ`.
+- **Frontend** : onglet "Vault API" dans SettingsBranch (ApiVaultPanel.tsx) — ajout/suppression/visualisation, chiffre au repos, jamaais logge.
+
+## Creation auto de competences (v9.3.1 — auto-apprentissage)
+- `orchestrator/repo_skill_extractor.py` — Analyse un depot clone (langage, framework, points d'entree, categorie scientifique) et propose des skills sous validation utilisateur.
+- `git_clone` enrichi : apres clone, analyse automatiquement le repo et propose des skills.
+- **2 skills** : `repo_analyze`, `repo_register_skills` (validation requise avant enregistrement dans HarnessManager).
+- **Endpoints** : `POST /api/repo/analyze`, `POST /api/repo/register-skills`.
+- **Frontend** : onglet "Competences" dans SettingsBranch (RepoSkillPanel.tsx).
 
 ## Boucle ReAct (v9.1)
 L'agent utilise désormais une boucle **Think → Act → Observe** au lieu de plan-then-execute :
@@ -74,6 +89,16 @@ python -m pytest tests/           # tests pipeline
 - `/api/terminal?command=...` — Terminal direct
 - `/api/preview/{filename}` — Preview artéfact (PDF, PNG, HTML)
 - `/ws` — WebSocket multiplexé (chat + terminal streaming)
+
+## Deploiement multi-environnements (v9.3.1)
+- **Dockerfile** — Image CPU-only (python:3.11-slim), Memory Guard 7500 Mo, cible HuggingFace Spaces / VPS (port 7860).
+- **docker-compose.yml** — 3 profils :
+  - `ratiss-server` (VPS/production, port 7860) — `docker compose up ratiss-server -d`
+  - `ratiss-hf` (HuggingFace Spaces) — `docker compose --profile huggingface up ratiss-hf -d`
+  - `ratiss-dev` (dev local hot-reload, port 12000) — `docker compose --profile dev up ratiss-dev -d`
+- **railway.json** — Deploiement Railway (backend FastAPI stateful).
+- **vercel.json** — Frontend statique servi par Vercel + rewrites vers le backend (Railway/Render/VPS).
+- Volumes persistants : `workspace/`, `data/`, `config/` (vault de cles API).
 
 ## Intégrations externes & import universel (v9.3)
 - **Store souverain** : `kernel/connectors/integrations.py` — 9 intégrations (github, arxiv, zenodo, openalex, crossref, rcsb_pdb, overleaf, ibm_quantum, tavily). État persistant dans `workspace/integrations_state.json`.

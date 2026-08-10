@@ -87,7 +87,8 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(({ onSend, 
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Enter (sans Shift) OU Ctrl/Cmd+Enter envoie le message
+    if ((e.key === 'Enter' && !e.shiftKey) || ((e.ctrlKey || e.metaKey) && e.key === 'Enter')) {
       e.preventDefault();
       if ((localValue.trim() || hasAttachment) && !isThinking) {
         onSend(localValue);

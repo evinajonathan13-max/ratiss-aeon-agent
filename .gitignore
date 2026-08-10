@@ -57,3 +57,7 @@ app/frontend/node_modules/
 app/frontend/dist/
 app/static/assets/
 app/static/index.html
+
+# Vault de cles API (chiffre au repos -- ne jamais committer)
+config/api_vault.json
+config/api_vault.key

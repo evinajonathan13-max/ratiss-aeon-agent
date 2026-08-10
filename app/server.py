@@ -208,6 +208,86 @@ async def llm_status():
     return llm_router.status()
 
 
+# ── Vault de cles API persistant (environnement souverain) ───────────────────
+
+@app.get("/api/vault/keys")
+async def vault_list():
+    """Liste les cles API stockees dans le vault persistant (sans reveler les valeurs)."""
+    from security.api_vault import list_keys, SUPPORTED_KEYS
+    stored = list_keys()
+    return {"keys": stored, "supported": SUPPORTED_KEYS}
+
+
+@app.post("/api/vault/key")
+async def vault_store(body: dict = None):
+    """Stocke une cle API dans le vault persistant (chiffre au repos).
+
+    Body: {"key_id": "ibm_quantum", "api_key": "...", "label": "IBM QPU", "metadata": {}}
+    """
+    from security.api_vault import store_key, SUPPORTED_KEYS
+    body = body or {}
+    key_id = body.get("key_id", "").strip()
+    api_key = body.get("api_key", "").strip()
+    if not key_id or not api_key:
+        return JSONResponse({"error": "missing_key_id_or_api_key"}, status_code=400)
+    if key_id not in SUPPORTED_KEYS:
+        return JSONResponse({"error": "unsupported_key", "key_id": key_id, "supported": SUPPORTED_KEYS}, status_code=400)
+    store_key(key_id, api_key, body.get("label", ""), body.get("metadata"))
+    return {"stored": True, "key_id": key_id}
+
+
+@app.delete("/api/vault/key")
+async def vault_delete(body: dict = None):
+    """Supprime une cle API du vault persistant."""
+    from security.api_vault import delete_key
+    body = body or {}
+    key_id = body.get("key_id", "").strip()
+    if not key_id:
+        return JSONResponse({"error": "missing_key_id"}, status_code=400)
+    deleted = delete_key(key_id)
+    return {"deleted": deleted, "key_id": key_id}
+
+
+@app.post("/api/vault/load")
+async def vault_load_env():
+    """Charge toutes les cles du vault dans l'environnement (au demarrage)."""
+    from security.api_vault import load_all_into_env
+    count = load_all_into_env()
+    return {"loaded": count}
+
+
+# ── Analyse de repo clone -> creation de skills sous validation ──────────────
+
+@app.post("/api/repo/analyze")
+async def repo_analyze(body: dict = None):
+    """Analyse un repo clone et propose des skills sous validation.
+
+    Body: {"repo_path": "/path/to/repo"}
+    """
+    from orchestrator.repo_skill_extractor import analyze_repo
+    body = body or {}
+    repo_path = body.get("repo_path", "")
+    if not repo_path:
+        return JSONResponse({"error": "missing_repo_path"}, status_code=400)
+    return analyze_repo(repo_path)
+
+
+@app.post("/api/repo/register-skills")
+async def repo_register_skills(body: dict = None):
+    """Valide et enregistre les skills proposes dans le HarnessManager.
+
+    Body: {"analysis": {...}, "skill_ids": ["repo_xxx_0", ...]}
+    """
+    from orchestrator.repo_skill_extractor import validate_and_register_skills
+    from orchestrator.harness_manager import HarnessManager
+    body = body or {}
+    analysis = body.get("analysis")
+    if not analysis:
+        return JSONResponse({"error": "missing_analysis"}, status_code=400)
+    hm = HarnessManager()
+    return validate_and_register_skills(analysis, hm, body.get("skill_ids"))
+
+
 @app.post("/api/llm/test")
 async def llm_test(body: dict = None):
     """Teste une connexion LLM en envoyant un prompt simple.
@@ -1065,6 +1145,15 @@ async def _handle_refine(ws: WebSocket, emitter, msg: dict, agent_ref: dict) -> 
 
 @app.on_event("startup")
 async def startup_telemetry():
+    # Charger les cles API persistantes du vault dans l'environnement
+    try:
+        from security.api_vault import load_all_into_env
+        loaded = load_all_into_env()
+        if loaded:
+            print(f"[RATISS] Vault: {loaded} cle(s) API persistante(s) chargee(s)")
+    except Exception as e:
+        print(f"[RATISS] Vault: chargement impossible ({e})")
+
     async def telemetry_loop():
         while True:
             await asyncio.sleep(2)

@@ -1,0 +1,25 @@
+# .dockerignore — Exclure les fichiers non necessaires au build Docker
+node_modules/
+app/frontend/node_modules/
+app/frontend/dist/
+**/.git
+**/.gitignore
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+harness/
+config/api_vault.json
+config/api_vault.key
+*.log
+.env
+.env.*
+.venv/
+venv/
+data/pdb/
+workspace/vault/
+docs/
+*.md
+!README.md
+LICENSE
+.gitattributes

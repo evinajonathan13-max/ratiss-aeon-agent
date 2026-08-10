@@ -35,3 +35,5 @@ requests>=2.28,<3.0
 
 # Sécurité (déjà dans la stdlib pour PBKDF2, SQLite)
 # bcrypt>=4.0  # optionnel pour hachage alternatif
+# Vault de cles API (chiffrement au repos Fernet)
+cryptography>=42.0,<46.0

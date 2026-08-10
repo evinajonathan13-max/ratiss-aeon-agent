@@ -85,12 +85,44 @@ def _terminal(params: dict[str, Any], ctx: dict[str, Any] | None = None) -> dict
 
 
 def _git_clone(params: dict[str, Any], ctx: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Clone un dépôt Git."""
+    """Clone un dépôt Git, puis l'analyse et propose des skills sous validation."""
     from tools.terminal_executor import TerminalExecutor
+    from orchestrator.repo_skill_extractor import analyze_repo
     workspace = ctx.get("workspace") if ctx else None
     cwd = Path(workspace) if workspace else None
     te = TerminalExecutor(cwd=cwd)
-    return te.git_clone(params.get("url", ""), params.get("dest"))
+    result = te.git_clone(params.get("url", ""), params.get("dest"))
+    # Si le clone a reussi, analyser le repo pour proposer des skills
+    if result.get("status") in ("SUCCESS", "OK") and result.get("dest"):
+        try:
+            analysis = analyze_repo(result["dest"])
+            result["repo_analysis"] = analysis
+        except Exception as e:
+            result["repo_analysis"] = {"status": "ERROR", "error": str(e)}
+    return result
+
+
+def _repo_analyze(params: dict[str, Any], ctx: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Analyse un repo deja clone et propose des skills sous validation."""
+    from orchestrator.repo_skill_extractor import analyze_repo
+    repo_path = params.get("repo_path") or params.get("path")
+    if not repo_path and ctx:
+        repo_path = str(ctx.get("workspace_dir", ""))
+    if not repo_path:
+        return {"status": "ERROR", "error": "missing_repo_path"}
+    return analyze_repo(repo_path)
+
+
+def _repo_register_skills(params: dict[str, Any], ctx: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Valide et enregistre les skills proposes dans le HarnessManager."""
+    from orchestrator.repo_skill_extractor import validate_and_register_skills
+    from orchestrator.harness_manager import HarnessManager
+    analysis = params.get("analysis")
+    if not analysis:
+        return {"status": "ERROR", "error": "missing_analysis"}
+    skill_ids = params.get("skill_ids")
+    hm = HarnessManager()
+    return validate_and_register_skills(analysis, hm, skill_ids)
 
 
 def _web_fetch(params: dict[str, Any]) -> dict[str, Any]:
@@ -190,6 +222,78 @@ def _file_saver(params: dict[str, Any], ctx: dict[str, Any] | None = None) -> di
     return execute_save(params, workspace_dir=workspace)
 
 
+# ── Red-teaming P vs NP (moteur deterministe RATISS) ─────────────────────────
+
+def _impossibility_solver(params: dict[str, Any]) -> dict[str, Any]:
+    """4 lois physiques de la calculabilite (Margolus-Levitin, Landauer, Zurek, Bekenstein)."""
+    from kernel.redteam.impossibility_solver import evaluate_physical_bounds
+    N = int(params.get("N", 100))
+    T = float(params.get("temperature", 300.0))
+    radius = float(params.get("radius_m", 1.0))
+    mass = float(params.get("mass_kg", 1000.0))
+    coupling = float(params.get("coupling", 1e-3))
+    res = evaluate_physical_bounds(N, T, radius, mass, coupling)
+    return {"status": "SUCCESS", "result": res}
+
+
+def _redteam_circuit(params: dict[str, Any]) -> dict[str, Any]:
+    """Attaque de bornes inferieures de circuits (Razborov-Rudich / Hastad)."""
+    import numpy as np
+    from kernel.redteam.circuit_lb import CircuitLowerBoundAttacker
+    n = int(params.get("n_vars", 6))
+    target_class = str(params.get("target_class", "AC0"))
+    hypothesis = str(params.get("hypothesis", "hardness_lower_bound"))
+    attacker = CircuitLowerBoundAttacker(n_vars=n)
+    truth_table = params.get("truth_table")
+    if truth_table is None:
+        truth_table = np.array([bin(i).count("1") % 2 for i in range(2 ** n)], dtype=np.uint8)
+    else:
+        truth_table = np.array(truth_table, dtype=np.uint8)
+    result = attacker.register_hypothesis(
+        hypothesis_id=f"H_{target_class}_{n}",
+        target_class=target_class,
+        target_function_truth_table=truth_table,
+        property_evaluator=lambda f: bool(np.sum(f) >= 2),
+        property_description=hypothesis,
+    )
+    return {"status": "SUCCESS", "result": attacker.to_dict(result)}
+
+
+def _redteam_tsp(params: dict[str, Any]) -> dict[str, Any]:
+    """Fuzzing TSP — benchmark d'un solveur candidat sur instances adversariales."""
+    from kernel.redteam.tsp_attacker import TSPAlgoAttacker
+    attacker = TSPAlgoAttacker()
+    report: dict[str, Any] = {"status": "SUCCESS", "instances": len(attacker.instances), "instance_families": {}}
+    for inst in attacker.instances:
+        report["instance_families"][inst.name] = {"family": inst.family.value, "nodes": inst.n, "optimal": inst.optimal_value}
+    if params.get("algo_code"):
+        ns: dict[str, Any] = {}
+        try:
+            exec("def solve(D):\n    import numpy as np\n    n=len(D)\n    tour=list(range(n))\n    return float(sum(D[tour[i],tour[(i+1)%n]] for i in range(n))), tour", ns)
+            report["benchmark"] = attacker.benchmark_algorithm(ns["solve"])
+        except Exception as e:
+            report["benchmark"] = {"verdict": "KILLED", "failures": [{"reason": f"CODE_EXEC_ERROR: {e}"}]}
+    return report
+
+
+def _redteam_full(params: dict[str, Any]) -> dict[str, Any]:
+    """Audit complet P vs NP : 4 lois physiques + circuit LB + TSP fuzzing."""
+    out: dict[str, Any] = {"status": "SUCCESS", "components": {}}
+    try:
+        out["components"]["impossibility_solver"] = _impossibility_solver(params).get("result", {})
+    except Exception as e:
+        out["components"]["impossibility_solver"] = {"error": str(e)}
+    try:
+        out["components"]["circuit_lb"] = _redteam_circuit(params).get("result", {})
+    except Exception as e:
+        out["components"]["circuit_lb"] = {"error": str(e)}
+    try:
+        out["components"]["tsp_attacker"] = _redteam_tsp(params)
+    except Exception as e:
+        out["components"]["tsp_attacker"] = {"error": str(e)}
+    return out
+
+
 SKILLS: dict[str, dict[str, Any]] = {
     # Noyau scientifique
     "load_pdb": {"label": "Chargement structure PDB", "fn": _load_pdb, "category": "biology"},
@@ -201,6 +305,8 @@ SKILLS: dict[str, dict[str, Any]] = {
     # Terminal (agent agentique souverain)
     "terminal": {"label": "Terminal (commande shell)", "fn": _terminal, "category": "terminal"},
     "git_clone": {"label": "Cloner un dépôt Git", "fn": _git_clone, "category": "terminal"},
+    "repo_analyze": {"label": "Analyser un repo → proposer des skills", "fn": _repo_analyze, "category": "terminal"},
+    "repo_register_skills": {"label": "Valider et enregistrer les skills proposés", "fn": _repo_register_skills, "category": "terminal"},
     # Web scientifique
     "web_fetch": {"label": "Récupérer une URL web", "fn": _web_fetch, "category": "web"},
     "web_arxiv": {"label": "Rechercher sur arXiv", "fn": _web_arxiv, "category": "web"},
@@ -219,6 +325,11 @@ SKILLS: dict[str, dict[str, Any]] = {
     "google_search": {"label": "Recherche web générale", "fn": _google_search, "category": "web"},
     "file_editor": {"label": "Éditeur de fichiers", "fn": _file_editor, "category": "files"},
     "file_saver": {"label": "Sauvegarder un fichier", "fn": _file_saver, "category": "files"},
+    # Red-teaming P vs NP (moteur deterministe)
+    "impossibility_solver": {"label": "4 lois physiques (Margolus/Landauer/Zurek/Bekenstein)", "fn": _impossibility_solver, "category": "redteam"},
+    "redteam_circuit": {"label": "Attaque bornes circuits (Razborov-Rudich/Hastad)", "fn": _redteam_circuit, "category": "redteam"},
+    "redteam_tsp": {"label": "Fuzzing TSP (instances adversariales)", "fn": _redteam_tsp, "category": "redteam"},
+    "redteam_full": {"label": "Audit complet P vs NP", "fn": _redteam_full, "category": "redteam"},
 }
 
 
