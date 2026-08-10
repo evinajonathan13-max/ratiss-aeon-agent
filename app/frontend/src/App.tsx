@@ -48,7 +48,8 @@ import { SettingsBranch } from "./components/SettingsBranch";
 import { ChatInput, ChatInputHandle } from "./components/ChatInput";
 import { RatissLive } from "./components/RatissLive";
 import { PredictiveSuggestions } from "./components/PredictiveSuggestions";
-import { Message, ChatSession, QueryLevel, InterfaceTheme, CalculationMode, ModelInfo } from "./types";
+import { Message, ChatSession, QueryLevel, InterfaceTheme, CalculationMode, ModelInfo, ImportedFile } from "./types";
+import { uploadFiles as uploadFilesApi } from "./lib/api";
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -169,15 +170,39 @@ export default function App() {
   const [forensicsEngine, setForensicsEngine] = useState<'gemini' | 'nemotron'>('gemini');
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [attachedImagePreview, setAttachedImagePreview] = useState<string | null>(null);
-  const [settingsInitialTab, setSettingsInitialTab] = useState<"archives" | "bridge_ia">("archives");
+  const [attachedImportedFiles, setAttachedImportedFiles] = useState<ImportedFile[]>([]);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<"models" | "agent" | "integrations" | "files" | "archives" | "bridge_ia">("models");
+  const [isDragOverChat, setIsDragOverChat] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const universalInputRef = useRef<HTMLInputElement>(null);
 
-  const openSettingsWithTab = (tab: "archives" | "bridge_ia") => {
+  const openSettingsWithTab = (tab: "archives" | "bridge_ia" | "files" | "integrations" | "models" | "agent") => {
     setSettingsInitialTab(tab);
     setShowSettingsBranch(true);
     setShowLab(false);
+  };
+
+  // Import universel : upload les fichiers puis les attache au chat
+  const handleUniversalUpload = async (files: File[]) => {
+    if (!files.length) return;
+    const uploaded = await uploadFilesApi(files);
+    if (uploaded.length) {
+      setAttachedImportedFiles(prev => [...prev, ...uploaded]);
+    }
+  };
+
+  // Drag & drop sur la zone de chat
+  const chatDragDepth = useRef(0);
+  const onChatDragEnter = (e: React.DragEvent) => { e.preventDefault(); chatDragDepth.current++; setIsDragOverChat(true); };
+  const onChatDragLeave = (e: React.DragEvent) => { e.preventDefault(); chatDragDepth.current--; if (chatDragDepth.current <= 0) setIsDragOverChat(false); };
+  const onChatDragOver = (e: React.DragEvent) => { e.preventDefault(); };
+  const onChatDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    chatDragDepth.current = 0;
+    setIsDragOverChat(false);
+    if (e.dataTransfer.files?.length) handleUniversalUpload(Array.from(e.dataTransfer.files));
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -495,10 +520,11 @@ export default function App() {
   }, [messages, isThinking]);
 
   const handleSend = async (content: string) => {
-    if ((!content || !content.trim()) && !attachedFile) return;
+    if ((!content || !content.trim()) && !attachedFile && attachedImportedFiles.length === 0) return;
     if (isThinking || !currentSessionId) return;
 
     const fileToAnalyze = attachedFile;
+    const importedFiles = [...attachedImportedFiles];
 
     // Build the user message content
     let displayContent = content.trim();
@@ -513,6 +539,10 @@ export default function App() {
           ? `${displayContent}\n\n${filePill}` 
           : filePill;
       }
+    }
+    if (importedFiles.length > 0) {
+      const pills = importedFiles.map(f => `*🗂️ Importé : ${f.name} (${f.kind}, ${f.size_kb} KB)*`).join("\n");
+      displayContent = displayContent ? `${displayContent}\n\n${pills}` : pills;
     }
 
     const userMessage: Message = {
@@ -545,6 +575,9 @@ export default function App() {
       setIsForensicsLoading(true);
       setAttachedFile(null); // Clear pending file immediately
       setAttachedImagePreview(null);
+    }
+    if (importedFiles.length > 0) {
+      setAttachedImportedFiles([]);
     }
 
     const controller = new AbortController();
@@ -595,16 +628,22 @@ export default function App() {
           });
         }
       } else {
-        // Standard chat flow
+        // Standard chat flow — inclure le contexte des fichiers importés
+        const fileContext = importedFiles.length > 0
+          ? "\n\n[Fichiers fournis pour l'analyse: " + importedFiles.map(f => `${f.name} (type=${f.kind}, chemin=${f.absolute_path || f.path})`).join("; ") + "]"
+          : "";
+        const messagesPayload = newMessages.map(m => {
+          if (m.role === "user" && m === newMessages[newMessages.length - 1] && fileContext) {
+            return { role: m.role, content: m.content + fileContext };
+          }
+          return { role: m.role, content: m.content };
+        });
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           signal: controller.signal,
           body: JSON.stringify({
-            messages: newMessages.map(m => ({
-              role: m.role,
-              content: m.content
-            })),
+            messages: messagesPayload,
             mode: calcMode,
             model_id: globalModelId,
             reasoning_mode: isReasoningModeActive
@@ -1010,7 +1049,7 @@ export default function App() {
             </button>
             <button 
               onClick={() => {
-                setSettingsInitialTab("archives");
+                setSettingsInitialTab("models");
                 setShowSettingsBranch(!showSettingsBranch);
                 setShowLab(false);
                 setShowTerminal(false);
@@ -1489,14 +1528,17 @@ export default function App() {
             {showSettingsBranch ? (
           <div className="flex-1 overflow-y-auto px-2 md:px-4 py-8">
             <div className="max-w-[98%] mx-auto">
-              <SettingsBranch 
-                sessions={sessions} 
+              <SettingsBranch
+                sessions={sessions}
                 onClose={() => setShowSettingsBranch(false)}
                 isCompetitionBranch={isCompetitionBranch}
                 onImportSession={handleImportBackup}
                 onAttachFile={(file) => {
                   setAttachedFile(file);
                   setShowSettingsBranch(false);
+                }}
+                onAttachImportedFile={(file) => {
+                  setAttachedImportedFiles(prev => [...prev, file]);
                 }}
                 initialTab={settingsInitialTab}
               />
@@ -1516,8 +1558,24 @@ export default function App() {
           </div>
         ) : (
           <>
+            {/* Drag & drop overlay */}
+            {isDragOverChat && (
+              <div className="absolute inset-0 z-40 bg-emerald-500/10 border-2 border-dashed border-emerald-400 flex items-center justify-center pointer-events-none">
+                <div className="flex flex-col items-center gap-3">
+                  <Paperclip className="w-12 h-12 text-emerald-400" />
+                  <p className="text-lg font-black text-emerald-400 uppercase tracking-widest">Déposez vos fichiers</p>
+                  <p className="text-[11px] font-mono text-emerald-300/70 uppercase tracking-widest">Import universel — tous formats</p>
+                </div>
+              </div>
+            )}
             {/* Flux de Discussion */}
-            <div className="flex-1 overflow-y-auto px-2 md:px-4 py-10">
+            <div
+              className="flex-1 overflow-y-auto px-2 md:px-4 py-10"
+              onDragEnter={onChatDragEnter}
+              onDragLeave={onChatDragLeave}
+              onDragOver={onChatDragOver}
+              onDrop={onChatDrop}
+            >
               <div className={`max-w-[98%] mx-auto space-y-4 ${isCompetitionBranch ? 'border-x border-red-900/10 px-6' : ''}`}>
                 {messages.length === 0 && (
                   <div className="flex flex-col items-center justify-center text-center py-20 px-4">
@@ -1645,14 +1703,35 @@ export default function App() {
                         <span>Analyser</span>
                       </button>
 
-                      <button 
+                      <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); setAttachedFile(null); setAttachedImagePreview(null); }} 
+                        onClick={(e) => { e.stopPropagation(); setAttachedFile(null); setAttachedImagePreview(null); }}
                         className="p-1 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors shrink-0"
                         title="Retirer le fichier"
                       >
                         <X className="w-4 h-4" />
                       </button>
+                    </div>
+                  )}
+
+                  {/* Fichiers importés (import universel — tous types) */}
+                  {attachedImportedFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {attachedImportedFiles.map((f) => (
+                        <div key={f.id} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-xs text-slate-200 select-none backdrop-blur-md">
+                          <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span className="font-mono truncate max-w-[160px] text-emerald-200">{f.name}</span>
+                          <span className="text-[9px] font-mono text-emerald-400/60 uppercase">{f.kind.split("_").pop()}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setAttachedImportedFiles(prev => prev.filter(x => x.id !== f.id)); }}
+                            className="p-0.5 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors"
+                            title="Retirer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
 
@@ -1702,6 +1781,18 @@ export default function App() {
                               className="hidden" 
                               onChange={handleFileSelect}
                             />
+                            <input
+                              type="file"
+                              ref={universalInputRef}
+                              accept="*/*"
+                              multiple
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files?.length) handleUniversalUpload(Array.from(e.target.files));
+                                setIsMenuOpen(false);
+                                if (e.target) e.target.value = "";
+                              }}
+                            />
                             
                             {/* Engine Selection Toggle */}
                             <div className="px-2.5 py-2 border-b border-white/5 mb-1.5 text-left">
@@ -1738,7 +1829,9 @@ export default function App() {
                               { icon: Camera, label: "Caméra", action: () => { cameraInputRef.current?.click(); setIsMenuOpen(false); } },
                               { icon: ImageIcon, label: "Galerie", action: () => { galleryInputRef.current?.click(); setIsMenuOpen(false); } },
                               { icon: FileText, label: "Fichiers", action: () => { fileInputRef.current?.click(); setIsMenuOpen(false); } },
+                              { icon: Paperclip, label: "Importer (tous types)", action: () => { universalInputRef.current?.click(); setIsMenuOpen(false); } },
                               { icon: Sparkles, label: "Pont IA (Hex/B64)", action: () => { openSettingsWithTab("bridge_ia"); setIsMenuOpen(false); } },
+                              { icon: Link2, label: "Intégrations (GitHub, arXiv…)", action: () => { openSettingsWithTab("integrations"); setIsMenuOpen(false); } },
                               { 
                                 icon: Brain, 
                                 label: isReasoningModeActive ? "Désactiver Raisonnement" : "Raisonnement Ultra [Boost]", 

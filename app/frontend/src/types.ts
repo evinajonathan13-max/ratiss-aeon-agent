@@ -44,3 +44,52 @@ export interface ModelInfo {
   provider: string;
   desc?: string;
 }
+
+// ── Fichiers importés (import universel) ──────────────────────────────────────
+
+export interface ImportedFile {
+  id: string;
+  name: string;
+  path: string;
+  absolute_path?: string;
+  size_bytes: number;
+  size_kb: number;
+  content_type: string;
+  kind: string; // catégorie scientifique détectée
+  uploaded_at: string;
+}
+
+// ── Intégrations externes ─────────────────────────────────────────────────────
+
+export interface Integration {
+  id: string;
+  name: string;
+  category: "code" | "publications" | "data" | "structural_biology" | "quantum" | "web";
+  icon: string;
+  scientific_role: string;
+  requires_token: boolean;
+  connected: boolean;
+  actions: string[];
+  docs_url: string;
+}
+
+export interface IntegrationsStatus {
+  integrations: Integration[];
+  total: number;
+  connected: number;
+  categories: string[];
+}
+
+// ── Options agent (paramètres scientifiques) ──────────────────────────────────
+
+export interface AgentOptions {
+  memoryLimitMb: number;
+  autoZkProof: boolean;
+  autoGeneratePdf: boolean;
+  reasoningDepth: "fast" | "standard" | "deep";
+  academicAuthor: string;
+  academicOrcid: string;
+  defaultDomain: string;
+  maxSteps: number;
+  telemetryEnabled: boolean;
+}

@@ -20,12 +20,19 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from kernel import bridge
 from kernel.connectors.registry import get_connectors_status, list_local_pdb
+from kernel.connectors.integrations import (
+    integrations_status as _integrations_status,
+    set_token as _set_integration_token,
+    clear_token as _clear_integration_token,
+    get_token as _get_integration_token,
+)
+from kernel.connectors.integration_actions import run_integration
 from orchestrator.agent import RatissAgent, get_skills_overview
 
 logger = logging.getLogger("ratiss.server")
@@ -711,9 +718,203 @@ async def harness_rollback(body: dict = None):
     return get_harness().rollback(version)
 
 
+# ── Intégrations externes (agent scientifique) ────────────────────────────────
+
+
+@app.get("/api/integrations")
+async def integrations_list():
+    """Liste toutes les intégrations disponibles avec leur état de connexion."""
+    return _integrations_status()
+
+
+@app.post("/api/integrations/connect")
+async def integrations_connect(body: dict = None):
+    """Connecte une intégration en stockant son jeton localement (souverain).
+
+    Body: {"integration_id": "github", "token": "ghp_..."}
+    Aucun jeton n'est renvoyé en réponse.
+    """
+    body = body or {}
+    iid = (body.get("integration_id") or body.get("id") or "").strip()
+    token = (body.get("token") or "").strip()
+    if not iid:
+        return JSONResponse({"error": "missing_integration_id"}, status_code=400)
+    ok = _set_integration_token(iid, token)
+    if not ok:
+        return JSONResponse({"error": "unknown_integration", "integration_id": iid}, status_code=400)
+    status = _integrations_status()
+    item = next((i for i in status["integrations"] if i["id"] == iid), None)
+    return {"connected": True, "integration_id": iid, "status": item}
+
+
+@app.post("/api/integrations/disconnect")
+async def integrations_disconnect(body: dict = None):
+    body = body or {}
+    iid = (body.get("integration_id") or "").strip()
+    if not iid:
+        return JSONResponse({"error": "missing_integration_id"}, status_code=400)
+    _clear_integration_token(iid)
+    return {"connected": False, "integration_id": iid}
+
+
+@app.post("/api/integrations/{integration_id}/{action}")
+async def integrations_run(integration_id: str, action: str, body: dict = None):
+    """Exécute une action d'intégration (ex: github/list_repos, arxiv/search)."""
+    result = run_integration(integration_id, action, body or {})
+    return result
+
+
+# ── Import de fichiers universel (tous types) ─────────────────────────────────
+
+UPLOADS_DIR = _ROOT / "workspace" / "uploads"
+
+
+def _detect_file_kind(filename: str, content_type: str) -> str:
+    """Détecte la catégorie scientifique d'un fichier (pour le pipeline RATISS)."""
+    name = (filename or "").lower()
+    ct = (content_type or "").lower()
+    ext_map = {
+        ".pdb": "structure_pdb", ".cif": "structure_cif", ".mmcif": "structure_cif",
+        ".xyz": "structure_xyz", ".mol": "structure_mol", ".mol2": "structure_mol2",
+        ".sdf": "structure_sdf",
+        ".csv": "data_csv", ".tsv": "data_tsv", ".dat": "data_dat",
+        ".npy": "array_npy", ".npz": "array_npz", ".h5": "array_hdf5", ".hdf5": "array_hdf5",
+        ".json": "config_json", ".yaml": "config_yaml", ".yml": "config_yaml", ".toml": "config_toml",
+        ".pdf": "document_pdf", ".docx": "document_docx", ".txt": "document_text",
+        ".tex": "latex", ".bib": "bibliography",
+        ".py": "code_python", ".ipynb": "code_notebook", ".r": "code_r", ".m": "code_matlab",
+        ".js": "code_js", ".ts": "code_ts", ".cpp": "code_cpp", ".c": "code_c", ".rs": "code_rust",
+        ".sh": "code_shell",
+        ".png": "image", ".jpg": "image", ".jpeg": "image", ".gif": "image",
+        ".webp": "image", ".bmp": "image", ".svg": "image_svg", ".tiff": "image",
+        ".mp4": "video", ".mov": "video", ".webm": "video",
+        ".wav": "audio", ".mp3": "audio", ".flac": "audio",
+        ".zip": "archive_zip", ".tar": "archive_tar", ".gz": "archive_gz",
+        ".md": "markdown",
+    }
+    for ext, kind in ext_map.items():
+        if name.endswith(ext):
+            return kind
+    if ct.startswith("image/"):
+        return "image"
+    if ct.startswith("video/"):
+        return "video"
+    if ct.startswith("audio/"):
+        return "audio"
+    if ct == "application/pdf":
+        return "document_pdf"
+    if ct.startswith("text/"):
+        return "document_text"
+    return "other"
+
+
+def _uploads_registry_path() -> Path:
+    return UPLOADS_DIR / "_registry.json"
+
+
+def _load_uploads_registry() -> list[dict[str, Any]]:
+    p = _uploads_registry_path()
+    if not p.exists():
+        return []
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+
+def _save_uploads_registry(items: list[dict[str, Any]]) -> None:
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    _uploads_registry_path().write_text(json.dumps(items, indent=2), encoding="utf-8")
+
+
+@app.post("/api/files/upload")
+async def files_upload(file: UploadFile = File(...)):
+    """Import universel — accepte N'IMPORTE quel type de fichier.
+
+    Sauvegarde dans workspace/uploads/, enregistre dans le registre, et renvoie
+    les métadonnées avec la catégorie scientifique détectée. Le pipeline RATISS
+    peut ensuite consommer le fichier (PDB → topologie, CSV → stats, etc.).
+    """
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    raw = await file.read()
+    if not raw:
+        return JSONResponse({"error": "empty_file"}, status_code=400)
+
+    safe_name = Path(file.filename or "upload.bin").name
+    dest = UPLOADS_DIR / safe_name
+    if dest.exists():
+        stem, suffix = dest.stem, dest.suffix
+        dest = UPLOADS_DIR / f"{stem}_{int(__import__('time').time())}{suffix}"
+        safe_name = dest.name
+
+    dest.write_bytes(raw)
+    kind = _detect_file_kind(file.filename or "", file.content_type or "")
+
+    item = {
+        "id": f"{int(__import__('time').time()*1000)}_{safe_name}",
+        "name": safe_name,
+        "path": str(dest.relative_to(_ROOT)),
+        "absolute_path": str(dest),
+        "size_bytes": len(raw),
+        "size_kb": round(len(raw) / 1024, 2),
+        "content_type": file.content_type or "application/octet-stream",
+        "kind": kind,
+        "uploaded_at": __import__("datetime").datetime.now().isoformat(timespec="seconds"),
+    }
+    items = _load_uploads_registry()
+    items.insert(0, item)
+    _save_uploads_registry(items)
+    logger.info(f"[upload] {safe_name} ({len(raw)} octets, kind={kind})")
+    return {"status": "SUCCESS", "file": item}
+
+
+@app.get("/api/files")
+async def files_list():
+    """Liste les fichiers importés."""
+    items = _load_uploads_registry()
+    return {"files": items, "count": len(items)}
+
+
+@app.delete("/api/files/{file_id}")
+async def files_delete(file_id: str):
+    items = _load_uploads_registry()
+    target = next((i for i in items if i["id"] == file_id), None)
+    if not target:
+        return JSONResponse({"error": "not_found"}, status_code=404)
+    try:
+        Path(target["absolute_path"]).unlink(missing_ok=True)
+    except Exception:
+        pass
+    items = [i for i in items if i["id"] != file_id]
+    _save_uploads_registry(items)
+    return {"status": "SUCCESS", "deleted": file_id}
+
+
+@app.post("/api/files/analyze")
+async def files_analyze(body: dict = None):
+    """Lance l'analyse scientifique d'un fichier importé via le pipeline RATISS.
+
+    Body: {"file_id": "...", "instruction": "Analyse topologique"}
+    Le chemin du fichier est injecté dans la tâche de l'agent.
+    """
+    body = body or {}
+    file_id = body.get("file_id", "")
+    items = _load_uploads_registry()
+    target = next((i for i in items if i["id"] == file_id), None)
+    if not target:
+        return JSONResponse({"error": "file_not_found"}, status_code=404)
+
+    instruction = (body.get("instruction") or "").strip()
+    task = f"{instruction or 'Analyse scientifique du fichier'}: {target['name']} (type={target['kind']}, {target['size_kb']} KB). Chemin: {target['absolute_path']}"
+    agent = RatissAgent(emit_fn=lambda evt: None)
+    loop = asyncio.get_event_loop()
+    agent.cascade.emit_fn = _make_sync_emitter(loop)
+    result = await asyncio.to_thread(agent.run, task)
+    return {"status": "SUCCESS", "file": target, "result": result}
+
+
 @app.get("/api/preview/{filename:path}")
 async def preview_artifact(filename: str):
-    """Sert un artéfact pour preview dans l'UI (PDF, PNG, HTML, SVG)."""
     # Décoder l'URL (pour les accents dans les noms de fichiers)
     from urllib.parse import unquote
     filename = unquote(filename)

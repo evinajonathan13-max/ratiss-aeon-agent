@@ -267,11 +267,48 @@ curl -X POST http://localhost:12000/api/llm/test \
 
 Voir `screenshots/ui-v9.3/` :
 - `01-main-chat.png` — Interface principale (chat + sidebar + sélecteur de mode)
-- `02-multi-llm-selector.png` — Sélecteur de modèles multi-fournisseurs (Anthropic, Google, OpenAI, OpenRouter, Souverain)
-- `03-api-key-config.png` — Modal de configuration des clés API multi-provider
-- `04-sovereign-lab.png` — SovereignLab (modules quantum, topologie, pipeline Aeon)
-- `05-openrouter-custom-input.png` — Champ de saisie personnalisé OpenRouter (modèle libre, non figé)
-- `06-refine-command-chat.png` — Commande `/refine` dans le chat (analyse trajectoire + leçons + validation ZK)
+- `02-settings-tabs.png` — Branche Paramètres avec navigation par onglets (6 onglets)
+- `03-models-llm.png` — Onglet « Modèles & LLM » : configuration des clés API multi-provider + catalogue de modèles
+- `04-agent-science.png` — Onglet « Agent & Science » : profondeur de raisonnement, certification ZK auto, rapports PDF, limites, identité académique
+- `05-integrations.png` / `05-integrations-full.png` — Onglet « Intégrations » : GitHub (priorité), arXiv, Zenodo, OpenAlex, Crossref, RCSB PDB, IBM Quantum, Tavily
+- `06-file-manager.png` — Onglet « Fichiers » : import universel drag & drop (tous formats scientifiques)
+- `07-file-manager-with-file.png` — Fichier importé (CSV détecté automatiquement) avec actions d'analyse
+- `08-sovereign-lab.png` — SovereignLab (modules quantum t-J, topologie, pipeline Aeon)
+
+### Intégrations externes (chaîne de recherche ouverte)
+
+RATISS s'intègre nativement aux outils de la science ouverte. Les jetons sont stockés localement (variables d'environnement) — souveraineté totale, jamais exposés.
+
+| Intégration | Catégorie | Actions | Variable d'environnement |
+|-------------|-----------|---------|--------------------------|
+| **GitHub** (priorité) | Code & reproductibilité | recherche de repos, détails, langages | `GITHUB_TOKEN` |
+| arXiv | Publications | recherche de prépublications | publique (sans clé) |
+| OpenAlex | Publications | graphe scientifique (auteurs, concepts) | publique (sans clé) |
+| Crossref | Publications | métadonnées DOI | publique (sans clé) |
+| Zenodo | Données | recherche de datasets | `ZENODO_TOKEN` |
+| RCSB PDB | Biologie structurale | structures 3D de macromolécules | publique (sans clé) |
+| IBM Quantum | Calcul quantique | exécution de circuits QPU | `IBMQ_TOKEN` |
+| Overleaf | Documents | collaboration LaTeX | `OVERLEAF_TOKEN` |
+| Tavily | Recherche web | grounding factuel | `TAVILY_API_KEY` |
+
+**Endpoints** : `GET /api/integrations` (statut), `POST /api/integrations/connect`, `POST /api/integrations/disconnect`, `POST /api/integrations/{id}/{action}`.
+
+### Import de fichiers universel
+
+RATISS accepte **tous les types de fichiers** via l'onglet « Fichiers » ou par glisser-déposer directement dans le chat. La détection automatique du format scientifique permet d'injecter chaque fichier dans le pipeline d'analyse agentique.
+
+| Type | Formats | Classification |
+|------|---------|----------------|
+| Structures | `.pdb`, `.cif`, `.xyz`, `.mol`, `.mol2`, `.sdf` | `structure_*` |
+| Données | `.csv`, `.tsv`, `.dat` | `data_*` |
+| Tableaux | `.npy`, `.npz`, `.h5`, `.hdf5` | `array_*` |
+| Config | `.json`, `.yaml`, `.toml` | `config_*` |
+| Documents | `.pdf`, `.docx`, `.txt`, `.tex`, `.bib` | `document_*` / `latex` / `bibliography` |
+| Code | `.py`, `.ipynb`, `.r`, `.m`, `.js`, `.ts`, `.cpp`, `.c`, `.rs`, `.sh` | `code_*` |
+| Médias | `.png`, `.jpg`, `.svg`, `.mp4`, `.wav` | `image*` / `video` / `audio` |
+| Archives | `.zip`, `.tar`, `.gz` | `archive_*` |
+
+**Endpoints** : `POST /api/files/upload` (multipart), `GET /api/files`, `DELETE /api/files/{id}`, `POST /api/files/analyze`.
 
 ## API REST
 
@@ -307,6 +344,14 @@ Voir `screenshots/ui-v9.3/` :
 | `/api/refine` | POST | Auto-amélioration : analyse une trajectoire, renvoie leçons + propositions (body: `{"apply": true}` pour appliquer) |
 | `/api/harness` | GET | État du harnais d'auto-amélioration (version, mémoire, prompts, trajectoires) |
 | `/api/harness/rollback` | POST | Restaure une version antérieure du harnais (body: `{"version": N}`) |
+| `/api/integrations` | GET | Statut des 9 intégrations externes (GitHub, arXiv, Zenodo, OpenAlex, Crossref, PDB, IBM, Overleaf, Tavily) |
+| `/api/integrations/connect` | POST | Connecte une intégration (body: `{integration_id, token}`) |
+| `/api/integrations/disconnect` | POST | Déconnecte une intégration (body: `{integration_id}`) |
+| `/api/integrations/{id}/{action}` | POST | Exécute une action d'intégration (ex: `github/search`, `arxiv/search`, `pdb/fetch`) |
+| `/api/files/upload` | POST | Import universel de fichiers (multipart, tous types, détection automatique du format) |
+| `/api/files` | GET | Liste des fichiers importés |
+| `/api/files/{file_id}` | DELETE | Supprime un fichier importé |
+| `/api/files/analyze` | POST | Analyse agentique d'un fichier importé (body: `{file_id, instruction}`) |
 | `/api/preview/{filename}` | GET | Sert un artéfact (PDF, PNG, HTML) |
 | `/api/artifacts/{session}` | GET | Liste des artéfacts |
 | `/ws` | WebSocket | Canal multiplexé temps réel (chat + terminal + browser + python) |

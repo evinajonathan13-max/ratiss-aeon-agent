@@ -75,6 +75,15 @@ python -m pytest tests/           # tests pipeline
 - `/api/preview/{filename}` — Preview artéfact (PDF, PNG, HTML)
 - `/ws` — WebSocket multiplexé (chat + terminal streaming)
 
+## Intégrations externes & import universel (v9.3)
+- **Store souverain** : `kernel/connectors/integrations.py` — 9 intégrations (github, arxiv, zenodo, openalex, crossref, rcsb_pdb, overleaf, ibm_quantum, tavily). État persistant dans `workspace/integrations_state.json`.
+- **Actions externes** : `kernel/connectors/integration_actions.py` — GitHub (search/repos/langages), arXiv (search), Zenodo, OpenAlex, Crossref, RCSB PDB (fetch), Overleaf. Toutes en HTTP via `httpx`/`urllib`, sans dépendance lourde.
+- **Endpoints** : `GET /api/integrations`, `POST /api/integrations/connect|disconnect`, `POST /api/integrations/{id}/{action}`.
+- **Import universel** : `POST /api/files/upload` (multipart, champ `file`) — détection MIME par extension, classification en `kind` (structure_*, data_*, array_*, code_*, document_*, latex, bibliography, image, video, audio, archive_*). Stockage dans `workspace/uploads/`.
+- **Endpoints fichiers** : `GET /api/files`, `DELETE /api/files/{id}`, `POST /api/files/analyze` (passe le chemin absolu du fichier au pipeline agentique).
+- **Frontend** : `lib/api.ts` (helpers HTTP), `components/FileManager.tsx` (drag & drop + liste + analyse), `components/IntegrationsPanel.tsx` (cartes par catégorie, connect/disconnect, actions). Onglets `models`/`agent`/`integrations`/`files` dans `SettingsBranch.tsx`.
+- **GitHub d'abord** : l'intégration GitHub est marquée priorité et apparaît en tête du panneau. `GITHUB_TOKEN` détecté automatiquement.
+
 ## Découvertes clés
 1. **quantum_solver.py** retourne un dict imbriqué : `tj_model`, `convergence`, `qubit_processing` (pas top-level)
 2. **zk prover** utilise `proof_receipt_b64` / `public_commitment` — normalisé dans skill_manager
