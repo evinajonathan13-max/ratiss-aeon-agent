@@ -1,63 +1,85 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- RATISS Aeon Prime — Bannière (logo + titre) -->
+<!-- RATISS Aeon Prime — Bannière (logo + titre) transdisciplinaire v2
+     Quantique ⊗ Topologie ⊗ Biologie ⊗ Crypto(ZK) → Aeon Core -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 320" width="1280" height="320" role="img" aria-label="RATISS Aeon Prime">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0b0b0b"/>
-      <stop offset="1" stop-color="#070a12"/>
+    <radialGradient id="bg" cx="0.18" cy="0.5" r="0.85">
+      <stop offset="0" stop-color="#0f1a2e"/>
+      <stop offset="0.5" stop-color="#0a0f1c"/>
+      <stop offset="1" stop-color="#05070d"/>
+    </radialGradient>
+    <radialGradient id="bloom" cx="0.18" cy="0.5" r="0.35">
+      <stop offset="0" stop-color="#7dd3fc" stop-opacity="0.4"/>
+      <stop offset="0.4" stop-color="#6366f1" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#a855f7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gQuantum" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#0891b2"/>
     </linearGradient>
-    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3b82f6"/>
-      <stop offset="0.5" stop-color="#2563eb"/>
-      <stop offset="1" stop-color="#8b5cf6"/>
+    <linearGradient id="gTopo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c084fc"/><stop offset="1" stop-color="#7c3aed"/>
     </linearGradient>
-    <linearGradient id="core" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#93c5fd"/>
-      <stop offset="1" stop-color="#2563eb"/>
+    <linearGradient id="gBio" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6ee7b7"/><stop offset="1" stop-color="#059669"/>
     </linearGradient>
-    <radialGradient id="halo" cx="0.22" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#3b82f6" stop-opacity="0.35"/>
-      <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    <linearGradient id="gCrypto" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fcd34d"/><stop offset="1" stop-color="#d97706"/>
+    </linearGradient>
+    <radialGradient id="gCore" cx="0.5" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.35" stop-color="#bae6fd"/>
+      <stop offset="0.7" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1e1b4b"/>
     </radialGradient>
     <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="coreGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
   <rect width="1280" height="320" fill="url(#bg)"/>
-  <rect width="1280" height="320" fill="url(#halo)"/>
+  <rect width="1280" height="320" fill="url(#bloom)"/>
 
-  <!-- emblème (centré à gauche) -->
+  <!-- étoiles -->
+  <g fill="#e2e8f0">
+    <circle cx="420" cy="60" r="1" opacity="0.5"/>
+    <circle cx="560" cy="270" r="1.2" opacity="0.4"/>
+    <circle cx="720" cy="90" r="0.9" opacity="0.45"/>
+    <circle cx="900" cy="240" r="1" opacity="0.4"/>
+    <circle cx="1100" cy="80" r="1.1" opacity="0.5"/>
+  </g>
+
+  <!-- emblème transdisciplinaire (centré à gauche) -->
   <g transform="translate(200 160)">
-    <path d="M0 -100 L130 -60 V60 C130 130 70 175 0 205 C-70 175 -130 130 -130 60 V-60 Z"
-          fill="none" stroke="url(#ring)" stroke-width="8" stroke-linejoin="round" opacity="0.5" transform="translate(0 0)"/>
-    <g fill="none" stroke="url(#ring)" stroke-width="5" opacity="0.9" filter="url(#glow)">
-      <ellipse rx="92" ry="38"/>
-      <ellipse rx="92" ry="38" transform="rotate(60)"/>
-      <ellipse rx="92" ry="38" transform="rotate(120)"/>
+    <!-- 4 anneaux colorés convergents -->
+    <g filter="url(#glow)">
+      <ellipse rx="80" ry="31" fill="none" stroke="url(#gQuantum)" stroke-width="4" opacity="0.92" transform="rotate(-30) translate(-23 -35)"/>
+      <ellipse rx="80" ry="31" fill="none" stroke="url(#gTopo)" stroke-width="4" opacity="0.92" transform="rotate(30) translate(23 -35)"/>
+      <ellipse rx="80" ry="31" fill="none" stroke="url(#gBio)" stroke-width="4" opacity="0.92" transform="rotate(-150) translate(-23 35)"/>
+      <ellipse rx="80" ry="31" fill="none" stroke="url(#gCrypto)" stroke-width="4" opacity="0.92" transform="rotate(150) translate(23 35)"/>
     </g>
-    <g fill="#bfdbfe" stroke="#60a5fa" stroke-width="2" opacity="0.9">
-      <line x1="0" y1="0" x2="-52" y2="-40"/>
-      <line x1="0" y1="0" x2="56" y2="-38"/>
-      <line x1="0" y1="0" x2="-48" y2="54"/>
-      <line x1="0" y1="0" x2="52" y2="50"/>
-    </g>
-    <g fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5">
-      <circle cx="-52" cy="-40" r="7"/>
-      <circle cx="56" cy="-38" r="7"/>
-      <circle cx="-48" cy="54" r="7"/>
-      <circle cx="52" cy="50" r="7"/>
-    </g>
-    <circle r="20" fill="none" stroke="#a78bfa" stroke-width="3" opacity="0.85" stroke-dasharray="5 5"/>
-    <circle r="10" fill="url(#core)" filter="url(#glow)"/>
-    <circle r="4" fill="#f8fafc"/>
+    <!-- noyau Aeon radiant -->
+    <circle r="32" fill="url(#bloom)" opacity="0.7"/>
+    <circle r="20" fill="url(#gCore)" filter="url(#coreGlow)"/>
+    <circle r="11" fill="#f0f9ff" opacity="0.85"/>
+    <circle cx="0" cy="-4" r="5" fill="#ffffff"/>
   </g>
 
   <!-- texte -->
-  <g fill="#f8fafc" font-family="'Space Grotesk', 'Inter', sans-serif" font-weight="700" text-rendering="geometricPrecision">
-    <text x="380" y="150" font-size="86" letter-spacing="4">RATISS</text>
-    <text x="384" y="196" font-size="34" letter-spacing="3" fill="#bfdbfe">Aeon Prime</text>
-    <text x="386" y="232" font-size="20" letter-spacing="2" fill="#60a5fa" opacity="0.85">Agent scientifique autonome souverain</text>
+  <g font-family="'Space Grotesk','Inter',sans-serif" font-weight="700" text-rendering="geometricPrecision">
+    <text x="330" y="142" font-size="82" letter-spacing="5" fill="#f1f5f9">RATISS</text>
+    <text x="336" y="184" font-size="30" letter-spacing="4" fill="#bae6fd">Aeon Prime</text>
+    <text x="338" y="218" font-size="17" letter-spacing="2" fill="#94a3b8" font-weight="500">Agent scientifique autonome souverain</text>
+  </g>
+  <!-- légende disciplines -->
+  <g font-family="'Inter',sans-serif" font-size="11" letter-spacing="2" font-weight="600">
+    <text x="338" y="252" fill="#22d3ee">QUANTUM</text>
+    <text x="430" y="252" fill="#c084fc">TOPOLOGIE</text>
+    <text x="535" y="252" fill="#10b981">BIO</text>
+    <text x="580" y="252" fill="#f59e0b">ZK-STARK</text>
   </g>
 </svg>

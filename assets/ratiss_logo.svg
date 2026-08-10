@@ -1,77 +1,186 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- RATISS Aeon Prime — Logo souverain (fusion quantum + topologie + souveraineté)
-     Propriété intellectuelle : JOHNKING0 & ARCHITECTE JONATHAN EVINA -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="RATISS Aeon Prime">
+<!-- RATISS Aeon Prime — Logo souverain transdisciplinaire v2
+     Fusion: Quantique ⊗ Topologie ⊗ Biologie ⊗ Crypto (ZK-STARK) → Aeon Core
+     Propriété intellectuelle : ARCHITECTE JONATHAN EVINA (ORCID 0009-0000-4092-5313) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="RATISS Aeon Prime — agent scientifique souverain">
   <defs>
-    <!-- dégradés -->
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0b0b0b"/>
-      <stop offset="0.55" stop-color="#0e1320"/>
-      <stop offset="1" stop-color="#070a12"/>
-    </linearGradient>
-    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3b82f6"/>
-      <stop offset="0.5" stop-color="#2563eb"/>
-      <stop offset="1" stop-color="#8b5cf6"/>
-    </linearGradient>
-    <linearGradient id="core" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#93c5fd"/>
-      <stop offset="1" stop-color="#2563eb"/>
-    </linearGradient>
-    <radialGradient id="halo" cx="0.5" cy="0.42" r="0.6">
-      <stop offset="0" stop-color="#3b82f6" stop-opacity="0.55"/>
-      <stop offset="0.55" stop-color="#2563eb" stop-opacity="0.12"/>
-      <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    <!-- Fond cosmique profond -->
+    <radialGradient id="bg" cx="0.5" cy="0.44" r="0.75">
+      <stop offset="0" stop-color="#0f1a2e"/>
+      <stop offset="0.45" stop-color="#0a0f1c"/>
+      <stop offset="1" stop-color="#05070d"/>
     </radialGradient>
+    <!-- Halo central (bloom du noyau Aeon) -->
+    <radialGradient id="bloom" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#7dd3fc" stop-opacity="0.55"/>
+      <stop offset="0.35" stop-color="#6366f1" stop-opacity="0.28"/>
+      <stop offset="0.7" stop-color="#a855f7" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#a855f7" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Anneau quantique (cyan) -->
+    <linearGradient id="gQuantum" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="0.5" stop-color="#06b6d4"/>
+      <stop offset="1" stop-color="#0891b2"/>
+    </linearGradient>
+    <!-- Anneau topologie (violet) -->
+    <linearGradient id="gTopo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c084fc"/>
+      <stop offset="0.5" stop-color="#a855f7"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <!-- Anneau biologie (émeraude) -->
+    <linearGradient id="gBio" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6ee7b7"/>
+      <stop offset="0.5" stop-color="#10b981"/>
+      <stop offset="1" stop-color="#059669"/>
+    </linearGradient>
+    <!-- Anneau crypto ZK (or/ambre) -->
+    <linearGradient id="gCrypto" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fcd34d"/>
+      <stop offset="0.5" stop-color="#f59e0b"/>
+      <stop offset="1" stop-color="#d97706"/>
+    </linearGradient>
+    <!-- Noyau Aeon (blanc→cyan→indigo) -->
+    <radialGradient id="gCore" cx="0.5" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.3" stop-color="#bae6fd"/>
+      <stop offset="0.65" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1e1b4b"/>
+    </radialGradient>
+    <!-- Cadre hexagonal souverain -->
+    <linearGradient id="gHex" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#60a5fa"/>
+      <stop offset="0.5" stop-color="#818cf8"/>
+      <stop offset="1" stop-color="#c084fc"/>
+    </linearGradient>
+    <!-- Glow filtre -->
     <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feGaussianBlur stdDeviation="5" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+    <filter id="coreGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
-  <!-- fond -->
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <rect width="512" height="512" rx="112" fill="url(#halo)"/>
+  <!-- Fond -->
+  <rect width="512" height="512" rx="118" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="118" fill="url(#bloom)"/>
 
-  <!-- bouclier souverain (contour arrondi) -->
-  <path d="M256 60 L420 116 V264 C420 360 348 430 256 466 C164 430 92 360 92 264 V116 Z"
-        fill="none" stroke="url(#ring)" stroke-width="10" stroke-linejoin="round" opacity="0.55"/>
-
-  <!-- orbites quantiques (3 ellipses croisées) -->
-  <g transform="translate(256 248)" fill="none" stroke="url(#ring)" stroke-width="6" opacity="0.9" filter="url(#glow)">
-    <ellipse rx="118" ry="48"/>
-    <ellipse rx="118" ry="48" transform="rotate(60)"/>
-    <ellipse rx="118" ry="48" transform="rotate(120)"/>
+  <!-- Étoiles d'arrière-plan (univers scientifique) -->
+  <g fill="#e2e8f0">
+    <circle cx="92" cy="110" r="1.2" opacity="0.6"/>
+    <circle cx="430" cy="92" r="1" opacity="0.5"/>
+    <circle cx="74" cy="300" r="1.4" opacity="0.4"/>
+    <circle cx="448" cy="320" r="1.1" opacity="0.55"/>
+    <circle cx="120" cy="420" r="1" opacity="0.45"/>
+    <circle cx="400" cy="430" r="1.3" opacity="0.5"/>
+    <circle cx="256" cy="78" r="0.9" opacity="0.4"/>
+    <circle cx="60" cy="200" r="0.8" opacity="0.35"/>
+    <circle cx="460" cy="210" r="0.9" opacity="0.4"/>
   </g>
 
-  <!-- réseau topologique (nœuds = points de Betti / graphe) -->
-  <g fill="#bfdbfe" stroke="#60a5fa" stroke-width="2.5" opacity="0.9">
-    <line x1="256" y1="248" x2="188" y2="196"/>
-    <line x1="256" y1="248" x2="328" y2="200"/>
-    <line x1="256" y1="248" x2="206" y2="318"/>
-    <line x1="256" y1="248" x2="312" y2="312"/>
-    <line x1="188" y1="196" x2="328" y2="200"/>
-    <line x1="206" y1="318" x2="312" y2="312"/>
-    <line x1="188" y1="196" x2="206" y2="318"/>
-    <line x1="328" y1="200" x2="312" y2="312"/>
-  </g>
-  <g fill="#dbeafe" stroke="#3b82f6" stroke-width="2">
-    <circle cx="188" cy="196" r="9"/>
-    <circle cx="328" cy="200" r="9"/>
-    <circle cx="206" cy="318" r="9"/>
-    <circle cx="312" cy="312" r="9"/>
+  <!-- Cadre hexagonal souverain (force moléculaire + crypto) -->
+  <g filter="url(#glow)">
+    <polygon points="256,58 426,156 426,356 256,454 86,356 86,156"
+             fill="none" stroke="url(#gHex)" stroke-width="3" opacity="0.45"/>
+    <polygon points="256,74 412,164 412,348 256,438 100,348 100,164"
+             fill="none" stroke="url(#gHex)" stroke-width="1.5" opacity="0.25" stroke-dasharray="4 6"/>
   </g>
 
-  <!-- trou topologique central (le « trou » de Betti) -->
-  <circle cx="256" cy="248" r="26" fill="none" stroke="#a78bfa" stroke-width="4" opacity="0.85" stroke-dasharray="6 6"/>
+  <!-- ─── 4 ANNEAUX TRANSDISCIPLINAIRES (convergence Borroméenne) ─── -->
+  <!-- Disposés en trèfil autour du centre, se chevauchent au noyau = transdisciplinarité -->
 
-  <!-- noyau quantique -->
-  <circle cx="256" cy="248" r="13" fill="url(#core)" filter="url(#glow)"/>
-  <circle cx="256" cy="248" r="5" fill="#f8fafc"/>
+  <!-- Anneau QUANTIQUE (haut-gauche) — orbites + dashed superposition -->
+  <g transform="translate(256 256)" filter="url(#glow)">
+    <ellipse rx="104" ry="40" fill="none" stroke="url(#gQuantum)" stroke-width="5" opacity="0.92" transform="rotate(-30) translate(-30 -46)"/>
+    <!-- électron quantique -->
+    <circle cx="-118" cy="-58" r="6" fill="#67e8f9" filter="url(#glow)"/>
+  </g>
 
-  <!-- lettres R -->
-  <g fill="#f8fafc" font-family="'Space Grotesk', 'Inter', sans-serif" font-weight="700" text-rendering="geometricPrecision">
-    <text x="256" y="430" font-size="58" text-anchor="middle" letter-spacing="6">RATISS</text>
-    <text x="256" y="452" font-size="13" text-anchor="middle" letter-spacing="4" opacity="0.7">AEON PRIME · SOUVERAIN</text>
+  <!-- Anneau TOPOLOGIE (haut-droite) — complexe simplicial + trou de Betti -->
+  <g transform="translate(256 256)" filter="url(#glow)">
+    <ellipse rx="104" ry="40" fill="none" stroke="url(#gTopo)" stroke-width="5" opacity="0.92" transform="rotate(30) translate(30 -46)"/>
+  </g>
+
+  <!-- Anneau BIOLOGIE (bas-gauche) — hélice/ribbon PDB -->
+  <g transform="translate(256 256)" filter="url(#glow)">
+    <ellipse rx="104" ry="40" fill="none" stroke="url(#gBio)" stroke-width="5" opacity="0.92" transform="rotate(-150) translate(-30 46)"/>
+  </g>
+
+  <!-- Anneau CRYPTO ZK (bas-droite) — shield hash -->
+  <g transform="translate(256 256)" filter="url(#glow)">
+    <ellipse rx="104" ry="40" fill="none" stroke="url(#gCrypto)" stroke-width="5" opacity="0.92" transform="rotate(150) translate(30 46)"/>
+  </g>
+
+  <!-- ─── GLYPHES DE CHAQUE DISCIPLINE (sur chaque anneau) ─── -->
+
+  <!-- Glyph QUANTIQUE : orbitale + node -->
+  <g transform="translate(158 168)" opacity="0.95">
+    <circle r="14" fill="none" stroke="#22d3ee" stroke-width="2.5"/>
+    <circle r="4.5" fill="#67e8f9" filter="url(#glow)"/>
+    <circle cx="14" cy="0" r="3" fill="#a5f3fc"/>
+    <circle cx="-14" cy="0" r="3" fill="#a5f3fc" opacity="0.7"/>
+  </g>
+
+  <!-- Glyph TOPOLOGIE : triangle simplicial + trou de Betti (cercle dashed) -->
+  <g transform="translate(354 168)" opacity="0.95">
+    <polygon points="0,-15 13,9 -13,9" fill="none" stroke="#c084fc" stroke-width="2.5" stroke-linejoin="round"/>
+    <circle r="5" fill="none" stroke="#e9d5ff" stroke-width="2" stroke-dasharray="3 3"/>
+  </g>
+
+  <!-- Glyph BIOLOGIE : double hélice ADN stylisée -->
+  <g transform="translate(158 344)" opacity="0.95" stroke-width="2.5" fill="none" stroke-linecap="round">
+    <path d="M -12,-14 Q 0,-7 12,-14 M -12,-14 Q 0,-21 12,-14" stroke="#6ee7b7"/>
+    <path d="M -12,14 Q 0,7 12,14 M -12,14 Q 0,21 12,14" stroke="#6ee7b7"/>
+    <line x1="-9" y1="-12" x2="-9" y2="12" stroke="#34d399" stroke-width="2"/>
+    <line x1="9" y1="-12" x2="9" y2="12" stroke="#34d399" stroke-width="2"/>
+    <line x1="-9" y1="-4" x2="9" y2="4" stroke="#a7f3d0" stroke-width="1.5"/>
+    <line x1="-9" y1="4" x2="9" y2="-4" stroke="#a7f3d0" stroke-width="1.5"/>
+  </g>
+
+  <!-- Glyph CRYPTO ZK : bouclier + hash marks -->
+  <g transform="translate(354 344)" opacity="0.95">
+    <path d="M 0,-16 L 13,-9 L 13,4 C 13,12 6,16 0,18 C -6,16 -13,12 -13,4 L -13,-9 Z"
+          fill="none" stroke="#fcd34d" stroke-width="2.5" stroke-linejoin="round"/>
+    <line x1="-6" y1="-4" x2="6" y2="-4" stroke="#fde68a" stroke-width="2"/>
+    <line x1="-6" y1="1" x2="6" y2="1" stroke="#fde68a" stroke-width="2"/>
+    <line x1="-6" y1="6" x2="3" y2="6" stroke="#fde68a" stroke-width="2"/>
+  </g>
+
+  <!-- ─── NOYAU AEON (point de convergence transdisciplinaire) ─── -->
+  <!-- Halo diffus -->
+  <circle cx="256" cy="256" r="46" fill="url(#bloom)" filter="url(#softGlow)" opacity="0.9"/>
+  <!-- Anneau de convergence -->
+  <circle cx="256" cy="256" r="38" fill="none" stroke="#bae6fd" stroke-width="1.5" opacity="0.5" stroke-dasharray="2 4"/>
+  <!-- Noyau radiant -->
+  <circle cx="256" cy="256" r="26" fill="url(#gCore)" filter="url(#coreGlow)"/>
+  <circle cx="256" cy="256" r="14" fill="#f0f9ff" opacity="0.85"/>
+  <circle cx="256" cy="250" r="6" fill="#ffffff"/>
+
+  <!-- ─── RAYONS DE CONVERGENCE (4 disciplines → noyau) ─── -->
+  <g stroke-width="1.2" opacity="0.5" fill="none">
+    <line x1="172" y1="182" x2="236" y2="244" stroke="#22d3ee"/>
+    <line x1="340" y1="182" x2="276" y2="244" stroke="#c084fc"/>
+    <line x1="172" y1="330" x2="236" y2="268" stroke="#10b981"/>
+    <line x1="340" y1="330" x2="276" y2="268" stroke="#f59e0b"/>
+  </g>
+
+  <!-- ─── TYPOGRAPHIE ─── -->
+  <g fill="#f1f5f9" font-family="'Space Grotesk','Inter',system-ui,sans-serif" text-rendering="geometricPrecision">
+    <text x="256" y="416" font-size="50" font-weight="700" text-anchor="middle" letter-spacing="7">RATISS</text>
+    <text x="256" y="438" font-size="11" font-weight="500" text-anchor="middle" letter-spacing="5" fill="#94a3b8">AEON PRIME · SOUVERAIN</text>
+  </g>
+  <!-- Légende des 4 disciplines (subtile, bas) -->
+  <g font-family="'Inter',system-ui,sans-serif" font-size="8.5" text-anchor="middle" letter-spacing="1.5" font-weight="600">
+    <text x="116" y="476" fill="#22d3ee">QUANTUM</text>
+    <text x="200" y="476" fill="#c084fc">TOPO</text>
+    <text x="256" y="476" fill="#10b981">BIO</text>
+    <text x="312" y="476" fill="#f59e0b">ZK</text>
   </g>
 </svg>
