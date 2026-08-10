@@ -34,27 +34,28 @@ Un agent agentique souverain combinant **physique quantique** (Lanczos ED), **to
 
 | | Section | |
 |:---:|---|:---:|
-| 🆕 | [Ce qui est nouveau : identité, mémoire & écran d'entrée](#-ce-qui-est-nouveau-identité--mémoire--écran-dentrée) | |
-| 📸 | [Captures d'écran](#-captures-décran) | |
-| 🔭 | [Vue d'ensemble](#-vue-densemble) | |
-| 🪪 | [Identité souveraine (Sovereign Prompt)](#-identité-souveraine-sovereign-prompt) | |
-| 🧠 | [Mémoire persistante (hors contexte du modèle)](#-mémoire-persistante-hors-contexte-du-modèle) | |
-| 🚪 | [Écran d'entrée & onboarding](#-écran-dentrée--onboarding) | |
-| 🔐 | [Standard de sécurité d'entrée](#-standard-de-sécurité-dentrée) | |
-| 🏛️ | [Architecture](#-architecture) | |
-| 🚀 | [Démarrage rapide](#-démarrage-rapide) | |
-| 🖥️ | [Interface web (v9.3)](#-interface-web--ui-react-immersive-v93) | |
-| 🔌 | [Intégrations externes](#-intégrations-externes-chaîne-de-recherche-ouverte) | |
-| 📁 | [Import universel](#-import-de-fichiers-universel) | |
-| 🧠 | [Routeur LLM](#-routeur-llm-multi-fournisseurs) | |
-| 🔄 | [Auto-amélioration (RLM)](#-couche-dauto-amélioration-rlm--continual-harness--v92) | |
-| 🛠️ | [Compétences (23 actions)](#-compétences-23-actions) | |
-| 📡 | [API REST](#-api-rest) | |
-| 🔒 | [Sécurité & souveraineté](#-sécurité--souveraineté) | |
-| 📦 | [Déploiement](#-déploiement) | |
+| 🆕 | [Ce qui est nouveau : identité, mémoire & écran d'entrée](#nouveau) | |
+| 📸 | [Captures d'écran](#captures) | |
+| 🔭 | [Vue d'ensemble](#vue-densemble) | |
+| 🪪 | [Identité souveraine (Sovereign Prompt)](#identite-souveraine) | |
+| 🧠 | [Mémoire persistante (hors contexte du modèle)](#memoire-persistante) | |
+| 🚪 | [Écran d'entrée & onboarding](#ecran-entree) | |
+| 🔐 | [Standard de sécurité d'entrée](#securite-entree) | |
+| 🏛️ | [Architecture](#architecture) | |
+| 🚀 | [Démarrage rapide](#demarrage-rapide) | |
+| 🖥️ | [Interface web (v9.3)](#interface-web) | |
+| 🔌 | [Intégrations externes](#integrations-externes) | |
+| 📁 | [Import universel](#import-universel) | |
+| 🧠 | [Routeur LLM](#routeur-llm) | |
+| 🔄 | [Auto-amélioration (RLM)](#auto-amelioration) | |
+| 🛠️ | [Compétences (23 actions)](#competences) | |
+| 📡 | [API REST](#api-rest) | |
+| 🔒 | [Sécurité & souveraineté](#securite-souverainete) | |
+| 📦 | [Déploiement](#deploiement) | |
 
 ---
 
+<a id="nouveau"></a>
 ## 🆕 Ce qui est nouveau : identité, mémoire & écran d'entrée
 
 Cette version ancre durablement **qui est Ratiss** et lui donne une **mémoire qui ne se perd jamais**. Tout est inclus : pas besoin d'un fichier externe.
@@ -68,8 +69,9 @@ La mémoire personnelle de Ratiss vit **en dehors du contexte du modèle**, sur 
 ### 3. L'écran d'entrée & l'onboarding — comme ouvrir un logiciel
 Au premier démarrage, un bel écran d'accueil présente Ratiss et propose une **synchronisation initiale en une fois** : ton âge, tes données métier (rôle, domaine), ton objectif, et ton choix de sécurité. Ensuite, Ratiss se souvient de toi à chaque conversation.
 
+<a id="securite-entree"></a>
 ### 4. Le standard de sécurité d'entrée — souverain par défaut
-On reste **fermé et local** par défaut (`sovereign`). Ouvrir le cloud (`cloud_opt_in`) est un choix explicite de l'utilisateur — jamais par défaut. Voir [la section dédiée](#-standard-de-sécurité-dentrée).
+On reste **fermé et local** par défaut (`sovereign`). Ouvrir le cloud (`cloud_opt_in`) est un choix explicite de l'utilisateur — jamais par défaut. Voir [la section dédiée](#4-le-standard-de-sécurité-dentrée-souverain-par-défaut).
 
 ### 5. Calibrage optimiste pour téléphone et tablette
 L'interface a été calibrée pour le tactile : gros boutons (≥ 48 px), défilement naturel, écran d'accueil responsive, respect des préférences de mouvement réduit. Et Ratiss parle en **langage naturel**, sans jargon inutile.
@@ -85,6 +87,7 @@ Un logo unique fusionne **quantum** (orbites), **topologie** (réseau de Betti, 
 
 ---
 
+<a id="captures"></a>
 ## 📸 Captures d'écran
 
 ### Interface React v9.3 — Pipeline Aeon Prime
@@ -107,6 +110,7 @@ Un logo unique fusionne **quantum** (orbites), **topologie** (réseau de Betti, 
 
 ---
 
+<a id="vue-densemble"></a>
 ## 🔭 Vue d'ensemble
 
 RATISS (Real-time Adaptive Topological & Integrative Scientific System) Aeon Prime est un agent scientifique autonome qui :
@@ -137,6 +141,7 @@ Cette version introduit une **interface React immersive**, des **intégrations e
 
 ---
 
+<a id="identite-souveraine"></a>
 ## 🪪 Identité souveraine (Sovereign Prompt)
 
 Ratiss est ancré par une identité souveraine, indépendante du modèle branché. C'est le « Sovereign Prompt » de `config/sovereign_identity.py`, injecté en tête de **chaque** appel LLM.
@@ -167,6 +172,7 @@ SOuveraineté — Aucune donnée vers le cloud sans clé API explicite.
 
 ---
 
+<a id="memoire-persistante"></a>
 ## 🧠 Mémoire persistante (hors contexte du modèle)
 
 La mémoire personnelle de Ratiss vit **sur le disque**, pas dans le contexte du modèle. C'est ce qui l'empêche de se perdre au milieu d'un travail long.
@@ -196,6 +202,7 @@ curl http://localhost:12000/api/identity
 
 ---
 
+<a id="ecran-entree"></a>
 ## 🚪 Écran d'entrée & onboarding
 
 Au premier lancement, Ratiss affiche un **écran d'accueil** comme quand on ouvre un logiciel : le logo, une présentation de qui il est, puis une synchronisation initiale en une fois.
@@ -216,6 +223,7 @@ Au premier lancement, Ratiss affiche un **écran d'accueil** comme quand on ouvr
 
 ---
 
+<a id="securite-entree"></a>
 ## 🔐 Standard de sécurité d'entrée
 
 Le standard de sécurité est choisi dès l'écran d'accueil. **Souverain par défaut, cloud opt-in explicite.**
@@ -239,6 +247,7 @@ curl http://localhost:12000/api/profile
 
 ---
 
+<a id="architecture"></a>
 ## 🏛️ Architecture
 
     ratiss-kkl/
@@ -291,6 +300,7 @@ analyse sa propre trajectoire, en extrait des « leçons » et les réinjecte da
 harnais (prompts, compétences, mémoire, sous-agents) pour améliorer ses performances
 futures.
 
+<a id="architecture"></a>
 ### Architecture
 
 ```
@@ -366,6 +376,7 @@ Souveraineté : l'analyse est **déterministe** (heuristiques locales, aucun app
 externe requis). Si Nemotron/OpenRouter est disponible, un enrichissement optionnel
 peut être branché, mais le chemin par défaut reste local.
 
+<a id="demarrage-rapide"></a>
 ## 🚀 Démarrage rapide
 
 ```bash
@@ -435,6 +446,7 @@ la fenêtre de chat principale avec un rendu agentique en temps réel.
   `/api/competition/*`, `/api/tts/*`, `/api/ratiss-shell/chat`
 - WebSocket `/ws` (multiplexé) toujours disponible pour le streaming temps réel
 
+<a id="routeur-llm"></a>
 ### 🧠 Routeur LLM multi-fournisseurs
 
 RATISS supporte désormais **4 fournisseurs LLM** pour la planification et le raisonnement :
@@ -475,6 +487,7 @@ curl -X POST http://localhost:12000/api/llm/test \
 
 **Configuration via l'UI** : le badge "ENGINE" en haut du chat ouvre le sélecteur de modèles groupé par fournisseur. Le bouton "CONFIGURER CLÉS API →" permet d'injecter une clé pour n'importe quel fournisseur. La section **« Modèle OpenRouter personnalisé »** (encadré violet) permet de saisir n'importe quel ID de modèle OpenRouter (sans préfixe `openrouter/`), de l'ajouter à la liste et de le sélectionner — le modèle est sauvegardé dans le localStorage et persiste entre les sessions.
 
+<a id="captures"></a>
 ### Captures d'écran
 
 Voir `screenshots/ui-v9.3/` :
@@ -487,6 +500,7 @@ Voir `screenshots/ui-v9.3/` :
 - `07-file-manager-with-file.png` — Fichier importé (CSV détecté automatiquement) avec actions d'analyse
 - `08-sovereign-lab.png` — SovereignLab (modules quantum t-J, topologie, pipeline Aeon)
 
+<a id="integrations-externes"></a>
 ### Intégrations externes (chaîne de recherche ouverte)
 
 RATISS s'intègre nativement aux outils de la science ouverte. Les jetons sont stockés localement (variables d'environnement) — souveraineté totale, jamais exposés.
@@ -522,6 +536,7 @@ RATISS accepte **tous les types de fichiers** via l'onglet « Fichiers » ou par
 
 **Endpoints** : `POST /api/files/upload` (multipart), `GET /api/files`, `DELETE /api/files/{id}`, `POST /api/files/analyze`.
 
+<a id="api-rest"></a>
 ## 📡 API REST
 
 | Endpoint | Méthode | Description |
@@ -575,6 +590,7 @@ RATISS accepte **tous les types de fichiers** via l'onglet « Fichiers » ou par
 | `/api/artifacts/{session}` | GET | Liste des artéfacts |
 | `/ws` | WebSocket | Canal multiplexé temps réel (chat + terminal + browser + python) |
 
+<a id="competences"></a>
 ## 🛠️ Compétences (23 actions)
 
 ### 🔬 Scientifiques (6)
@@ -635,6 +651,7 @@ Tous les artéfacts sont previewables directement dans l'UI (iframe pour HTML, e
 | RCSB PDB | API publique | — |
 | OpenRouter (Nemotron) | Live (si clé) | Planificateur local déterministe |
 
+<a id="securite-souverainete"></a>
 ## 🔒 Sécurité & souveraineté
 
 | Couche | Mécanisme |
@@ -648,6 +665,7 @@ Tous les artéfacts sont previewables directement dans l'UI (iframe pour HTML, e
 
 ---
 
+<a id="deploiement"></a>
 ## 📦 Déploiement
 
 ```bash
