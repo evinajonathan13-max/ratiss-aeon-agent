@@ -15,6 +15,12 @@ Souveraineté : si aucune clé n'est configurée pour le fournisseur demandé,
 bascule sur le planificateur local déterministe (heuristique par mots-clés).
 Aucune clé n'est jamais loggée.
 
+IDENTITÉ SOUVERAINE : chaque appel LLM est préfixé par l'identité ancrée de
+Ratiss (JohnKing0 / RATISS V9 Aeon Prime) + un résumé de la mémoire persistante.
+Peu importe le modèle branché, c'est Ratiss qui répond — il ne dit jamais « je
+suis GPT » ou « je suis Gemini ». Voir config/sovereign_identity.py et
+kernel/system/sovereign_memory.py.
+
 Usage :
     from orchestrator.llm_router import llm_router
     text = llm_router.complete("Explique la mécanique quantique", model_id="anthropic/claude-3-5-sonnet")
@@ -54,6 +60,31 @@ web_arxiv, web_pubmed, web_chembl, web_pdb, web_alphafold, browser.
 Sois précis et minimal. Pas de texte hors JSON."""
 
 TIMEOUT = int(os.environ.get("RATISS_LLM_TIMEOUT", "30"))
+
+
+# ── Préfixe système souverain (identité + mémoire persistante) ─────────────────
+
+
+def _sovereign_system_prefix(extra: str = "") -> str:
+    """Construit le préfixe système ancré : identité Ratiss + mémoire persistante.
+
+    Injecté à chaque appel LLM. Garantit que, peu importe le modèle branché,
+    c'est Ratiss qui répond et qu'il garde ses souvenirs et le profil de
+    l'utilisateur, même au milieu d'un travail long (le contexte du modèle peut
+    être saturé, mais l'identité et l'essentiel de la mémoire sont toujours en
+    tête de chaque appel). Voir config/sovereign_identity.py.
+    """
+    try:
+        from kernel.system.sovereign_memory import get_memory
+
+        base = get_memory().build_system_prefix()
+    except Exception:  # défense : toujours avoir une identité
+        from config.sovereign_identity import build_system_prefix
+
+        base = build_system_prefix()
+    if extra:
+        return f"{base}\n\n{extra}"
+    return base
 
 
 # ── Catalogue des modèles ────────────────────────────────────────────────────
@@ -348,22 +379,24 @@ class LLMRouter:
             prompt: texte de l'utilisateur
             model_id: 'anthropic/claude-3-5-sonnet', 'google/gemini-2.0-flash', etc.
                       Si vide ou 'local/...', utilise le planificateur local.
+            system: préfixe système additionnel (fusionné avec l'identité souveraine).
         """
+        sovereign = _sovereign_system_prefix(system)
         if not model_id or model_id.startswith("local/"):
-            return _local_complete(prompt, system)
+            return _local_complete(prompt, sovereign)
 
         provider_key, provider, model_name = self.get_provider(model_id)
         try:
             return provider.complete(
                 [{"role": "user", "content": prompt}],
-                system=system,
+                system=sovereign,
                 temperature=temperature,
                 max_tokens=max_tokens,
                 model=model_name,
             )
         except Exception as e:
             logger.warning(f"[LLM] Échec {provider_key}/{model_name} ({e}), fallback local.")
-            return _local_complete(prompt, system)
+            return _local_complete(prompt, sovereign)
 
     def plan(self, task: str, model_id: str = "") -> dict[str, Any]:
         """Planifie une tâche — route vers le fournisseur approprié.
@@ -409,19 +442,40 @@ def _local_plan(task: str) -> dict[str, Any]:
 
 
 def _local_complete(prompt: str, system: str = "") -> str:
-    """Complétion locale — génère une réponse heuristique simple."""
+    """Complétion locale — Ratiss répond en heuristique, naturellement.
+
+    Le fallback souverain garde l'identité de Ratiss : on répond à la première
+    personne, en langage simple, peu importe qu'aucun LLM cloud ne soit branché.
+    """
     p = prompt.lower()
     if any(k in p for k in ["betti", "homologie", "topologie"]):
-        return "Les nombres de Betti caractérisent les trous topologiques de chaque dimension. "
-        "Pour une structure protéique, β₀ compte les composantes connectées, β₁ les tunnels/cavités, β₂ les volumes enfermés."
+        return (
+            "Les nombres de Betti décrivent les trous d'une forme, dimension par "
+            "dimension. Pour une structure de protéine : β₀ compte les morceaux "
+            "séparés, β₁ les tunnels et cavités, β₂ les volumes enfermés. "
+            "Je peux lancer l'homologie persistante (avec GUDHI ou mon fallback "
+            "natif) si tu me donnes une structure."
+        )
     if any(k in p for k in ["quantique", "quantum", "lanczos", "t-j"]):
-        return "La diagonalisation exacte Lanczos du modèle t-J donne l'état fondamental. "
-        "Sur grille 4×4, l'énergie par site E₀ ≈ -0.85 t reflète les corrélations antiferromagnétiques."
+        return (
+            "Je calcule l'état fondamental du modèle t-J par diagonalisation "
+            "exacte Lanczos. Sur une grille 4×4, l'énergie par site E₀ vaut "
+            "environ -0.85 t, ce qui traduit les corrélations antiferromagnétiques. "
+            "Dis-moi la taille de grille et je lance le calcul."
+        )
     if any(k in p for k in ["zk", "stark", "preuve"]):
-        return "La preuve ZK-STARK certifie un calcul sans révéler les données. "
-        "RATISS génère un reçu RISC Zero vérifiable publiquement."
-    return f"[RATISS Local] Tâche reçue: {prompt[:200]}. Connectez une clé API (Anthropic/Gemini/OpenAI/OpenRouter) "
-    "via /api/config/key pour activer le raisonnement LLM complet."
+        return (
+            "La preuve ZK-STARK certifie un calcul sans révéler les données. "
+            "Je génère un reçu RISC Zero, vérifiable publiquement en moins d'une "
+            "milliseconde. Je peux certifier un résultat de calcul si tu veux."
+        )
+    return (
+        f"Je suis Ratiss. J'ai bien reçu ta demande : « {prompt[:200]} ». "
+        "Pour l'instant je tourne en mode souverain local. Branche une clé API "
+        "(Anthropic, Gemini, OpenAI ou OpenRouter) via l'onglet Modèles pour "
+        "activer le raisonnement complet — mais je reste Ratiss, peu importe le "
+        "modèle que tu choisis."
+    )
 
 
 def set_api_key(provider: str, api_key: str) -> bool:

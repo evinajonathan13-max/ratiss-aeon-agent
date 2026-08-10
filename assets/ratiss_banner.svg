@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- RATISS Aeon Prime — Bannière (logo + titre) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 320" width="1280" height="320" role="img" aria-label="RATISS Aeon Prime">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0b0b"/>
+      <stop offset="1" stop-color="#070a12"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="0.5" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#93c5fd"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.22" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3b82f6" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="320" fill="url(#bg)"/>
+  <rect width="1280" height="320" fill="url(#halo)"/>
+
+  <!-- emblème (centré à gauche) -->
+  <g transform="translate(200 160)">
+    <path d="M0 -100 L130 -60 V60 C130 130 70 175 0 205 C-70 175 -130 130 -130 60 V-60 Z"
+          fill="none" stroke="url(#ring)" stroke-width="8" stroke-linejoin="round" opacity="0.5" transform="translate(0 0)"/>
+    <g fill="none" stroke="url(#ring)" stroke-width="5" opacity="0.9" filter="url(#glow)">
+      <ellipse rx="92" ry="38"/>
+      <ellipse rx="92" ry="38" transform="rotate(60)"/>
+      <ellipse rx="92" ry="38" transform="rotate(120)"/>
+    </g>
+    <g fill="#bfdbfe" stroke="#60a5fa" stroke-width="2" opacity="0.9">
+      <line x1="0" y1="0" x2="-52" y2="-40"/>
+      <line x1="0" y1="0" x2="56" y2="-38"/>
+      <line x1="0" y1="0" x2="-48" y2="54"/>
+      <line x1="0" y1="0" x2="52" y2="50"/>
+    </g>
+    <g fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5">
+      <circle cx="-52" cy="-40" r="7"/>
+      <circle cx="56" cy="-38" r="7"/>
+      <circle cx="-48" cy="54" r="7"/>
+      <circle cx="52" cy="50" r="7"/>
+    </g>
+    <circle r="20" fill="none" stroke="#a78bfa" stroke-width="3" opacity="0.85" stroke-dasharray="5 5"/>
+    <circle r="10" fill="url(#core)" filter="url(#glow)"/>
+    <circle r="4" fill="#f8fafc"/>
+  </g>
+
+  <!-- texte -->
+  <g fill="#f8fafc" font-family="'Space Grotesk', 'Inter', sans-serif" font-weight="700" text-rendering="geometricPrecision">
+    <text x="380" y="150" font-size="86" letter-spacing="4">RATISS</text>
+    <text x="384" y="196" font-size="34" letter-spacing="3" fill="#bfdbfe">Aeon Prime</text>
+    <text x="386" y="232" font-size="20" letter-spacing="2" fill="#60a5fa" opacity="0.85">Agent scientifique autonome souverain</text>
+  </g>
+</svg>

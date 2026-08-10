@@ -221,6 +221,24 @@ class RatissAgent:
             },
         }
         self._save_artifact("result.json", summary)
+        # Mémoire persistante : Ratiss se souvient de la tâche terminée.
+        # Cela lui permet de reprendre un travail long sans se perdre, même si le
+        # contexte du modèle a été saturé entre temps.
+        try:
+            from kernel.system.sovereign_memory import get_memory
+
+            goal = plan.get("goal", task)[:160]
+            ok = summary.get("steps_success", 0)
+            total = summary.get("steps_executed", 0)
+            domain = summary.get("domain", "")
+            get_memory().remember(
+                f"Tâche terminée ({domain}) : {goal}. Étapes : {ok}/{total} réussies "
+                f"en {summary.get('execution_time_sec', 0)}s.",
+                kind="task",
+                confidence=0.9,
+            )
+        except Exception as e:
+            logger.warning(f"[AGENT] Sauvegarde mémoire échouée: {e}")
         # Auto-amélioration : persister la trajectoire pour /refine
         self.last_summary = summary
         try:

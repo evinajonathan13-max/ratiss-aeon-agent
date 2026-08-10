@@ -5,12 +5,18 @@
 - **Objectif** : Agent scientifique autonome souverain (quantum + topology + bio + crypto + browser + terminal + python + web + contenu) pour incubateurs/investisseurs
 - **Dépôt** : `ratiss-aeon-agent` (GitHub: evinajonathan13-max), branche `main`
 - **Source** : extension de `ratiss-kkl` (PR #1 merged)
-- **Version** : 9.3.0 (kernel ratiss_v9_aeon_prime) — UI React immersive + couche d'auto-amélioration RLM/Continual Harness
+- **Version** : 9.4.0 (kernel ratiss_v9_aeon_prime) — UI React immersive + couche d'auto-amélioration RLM/Continual Harness + identité souveraine ancrée + mémoire persistante
+- **Propriété intellectuelle** : JOHNKING0 & architecte Jonathan Evina
 
 ## Architecture (29 skills + couche RLM)
 - `kernel/` — Noyau scientifique RATISS V9 (main.py, bridge.py, solvers/, connectors/, core/, system/, zk/)
+  - `system/sovereign_memory.py` — **NOUVEAU v9.4** Mémoire personnelle persistante (hors contexte du modèle). Stocke identité, capacités, profil utilisateur, mode de sécurité, souvenirs datés dans `config/sovereign_memory.json`. `build_system_prefix()` reconstruit le préfixe (identité + mémoire) à chaque appel → Ratiss ne se perd jamais, même en travail long.
+- `config/sovereign_identity.py` — **NOUVEAU v9.4** Identité souveraine ancrée (JohnKing0 / RATISS V9 Aeon Prime). `SOVEREIGN_PROMPT`, `build_system_prefix()`, `identity_signature()`, `who_am_i()`. Model-agnostic : peu importe le LLM branché, c'est Ratiss qui répond.
+- `assets/` — **NOUVEAU v9.4** Logo + bannière (`ratiss_logo.svg/png`, `ratiss_banner.svg/png`). Servi via `GET /assets/logo.{svg,png}`.
 - `orchestrator/` — Agent agentique avec **boucle ReAct** (agent.py, nemotron_client.py, skill_manager.py, cascade.py)
-  - `llm_router.py` — **NOUVEAU v9.3.1** Routeur LLM multi-fournisseurs : Anthropic (Claude), Google (Gemini), OpenAI (GPT), OpenRouter (Nemotron + **tout modèle personnalisé saisi par l'utilisateur**) + fallback souverain local. `complete()`, `plan()`, `set_api_key()`, catalogue de 14 modèles. `_parse_model_id()` route via le préfixe (`openrouter/<n'importe-quel-id>`).
+  - `llm_router.py` — Routeur LLM multi-fournisseurs : Anthropic (Claude), Google (Gemini), OpenAI (GPT), OpenRouter (Nemotron + **tout modèle personnalisé saisi par l'utilisateur**) + fallback souverain local. `complete()`, `plan()`, `set_api_key()`, catalogue de 14 modèles. `_parse_model_id()` route via le préfixe (`openrouter/<n'importe-quel-id>`). **v9.4** : `_sovereign_system_prefix()` injecte identité + mémoire à chaque appel ; le fallback local `_local_complete` parle en langage naturel au nom de Ratiss.
+  - `nemotron_client.py` — Client OpenRouter (Nemotron) + planificateur local. **v9.4** : `SYSTEM_PROMPT` ancé « Tu es RATISS (instance JohnKing0) ».
+  - `agent.py` — Boucle Plan → Execute → Certify → Artifact + refine(). **v9.4** : sauvegarde un souvenir en mémoire persistante à la fin de chaque `run()`.
   - `auto_improve.py` — **NOUVEAU v9.2** Couche RLM : analyze_trajectory, extract_lessons (pattern/heuristic/pitfall/memory), validate_lessons_with_zk, pipeline refine()
   - `harness_manager.py` — **NOUVEAU v9.2** Continual Harness : état persistant versionné (prompts/skills/memory/subagents), CRUD, snapshots + rollback, archive leçons & trajectoires
 - `tools/` — outils agentiques :
@@ -23,10 +29,12 @@
   - `file_editor.py` — **NOUVEAU** Éditeur de fichiers (view, create, str_replace, insert, undo, list)
   - `file_saver.py` — **NOUVEAU** Sauvegarder du contenu arbitraire
 - `app/` — FastAPI + WebSocket + UI React immersive
-  - `server.py` — FastAPI (40 routes), mount `/static` + `/assets`, SSE `/api/chat`
+  - `server.py` — FastAPI (40+ routes), mount `/static` + `/assets`, SSE `/api/chat`. **v9.4** : endpoints identité/mémoire/onboarding (`/api/identity`, `/api/profile`, `/api/profile/onboard`, `/api/profile/security`, `/api/memory/state`, `/api/memory/remember`, `/api/memory/{id}`) + `/assets/logo.{svg,png}`.
   - `frontend/` — **NOUVEAU v9.3** UI React/TypeScript (Vite 6 + React 19 + Tailwind v4)
     - `src/App.tsx` — App principale, handleSend (SSE reader)
     - `src/components/` — Sidebar, MessageBubble, ThinkingLoader, ChatInput, PredictiveSuggestions, AgenticActionCard, RatissAgentViewer, SovereignLab, InteractiveTerminal, RatissLive, VoiceManager, SettingsBranch…
+    - `src/components/OnboardingGate.tsx` — **NOUVEAU v9.4** Porte d'entrée : vérifie l'onboarding, affiche l'écran d'accueil si nécessaire.
+    - `src/components/WelcomeScreen.tsx` — **NOUVEAU v9.4** Écran d'accueil (logo + collecte profil âge/métier + choix sécurité). Responsive, calibrage tactile.
     - `src/lib/` — browserTts, pdfReportGenerator
     - build → `app/static/` (servi par FastAPI)
 - `security/` — Sessions, PBKDF2, isolation workspace, NemoSandbox
@@ -74,6 +82,19 @@ Boucle : Exécution → Validation ZK → Analyse trajectoire → Leçons → Va
 - Validation ZK : `validate_lessons_with_zk` génère une preuve ZK-STARK sur un payload d'invariants (énergie<0, entropie≥0, réseau valide) + hash des leçons ; aucune mise à jour si invalide.
 - Souveraineté : analyse déterministe (heuristiques locales), aucun LLM externe requis.
 
+## Identité souveraine & mémoire persistante (v9.4)
+- **Principe** : Ratiss doit réécrire sa mémoire pour toujours se souvenir de qui il est et de ses capacités, peu importe le modèle branché. C'est Ratiss, ni GPT ni Gemini.
+- `config/sovereign_identity.py` — `SOVEREIGN_PROMPT` (JohnKing0 / RATISS V9 Aeon Prime), `build_system_prefix()` (fusion identité + mémoire), `identity_signature()` (signature ZK), `who_am_i()`.
+- `kernel/system/sovereign_memory.py` — `SovereignMemory` : `remember()`, `forget()`, `set_profile()`, `set_security_mode()`, `build_system_prefix()`, `snapshot_for_prompt()`. Persistance `config/sovereign_memory.json` (gitignoré). Max 200 souvenirs, 8 dans le snapshot injecté.
+- **Ancrage** : `orchestrator/llm_router.py::_sovereign_system_prefix()` préfixe chaque `complete()` ; le fallback `_local_complete` parle en langage naturel au nom de Ratiss. `agent.py` sauvegarde un souvenir à la fin de chaque `run()`.
+- **Calibrage** : langage naturel (pas de jargon), ton optimiste, UX responsive/tactile (téléphone + tablette) via `WelcomeScreen.tsx` + `index.css`.
+
+## Onboarding & standard de sécurité d'entrée (v9.4)
+- **Écran d'accueil** : `OnboardingGate.tsx` (vérifie l'onboarding) + `WelcomeScreen.tsx` (logo + collecte profil + choix sécurité). Synchronisation une fois via `POST /api/profile/onboard`.
+- **Données collectées** : prénom, âge, rôle, domaine, objectif.
+- **Standard de sécurité** : `sovereign` (fermé, défaut) ou `cloud_opt_in` (ouvert, explicite). Choix justifié : la souveraineté est fondatrice → fermé par défaut, cloud opt-in sur décision utilisateur.
+- **Endpoints** : `GET /api/identity`, `GET /api/profile`, `POST /api/profile/onboard`, `POST /api/profile/security`, `GET /api/memory/state`, `POST /api/memory/remember`, `DELETE /api/memory/{id}`, `GET /assets/logo.{svg,png}`.
+
 ## Commandes utiles
 ```bash
 pip install -r requirements.txt
@@ -90,15 +111,16 @@ python -m pytest tests/           # tests pipeline
 - `/api/preview/{filename}` — Preview artéfact (PDF, PNG, HTML)
 - `/ws` — WebSocket multiplexé (chat + terminal streaming)
 
-## Deploiement multi-environnements (v9.3.1)
-- **Dockerfile** — Image CPU-only (python:3.11-slim), Memory Guard 7500 Mo, cible HuggingFace Spaces / VPS (port 7860).
+## Deploiement multi-environnements (v9.4)
+- **Dockerfile** — Image multi-étapes CPU-only : stage `node:20-slim` qui build le frontend React (Vite → `app/static/`, gitignoré à la source) puis stage `python:3.11-slim` final (Memory Guard 7500 Mo, cible HuggingFace Spaces / VPS, port 7860). Healthcheck Python urllib (pas de curl). Sans le stage frontend, l'UI v9.4 (OnboardingGate/WelcomeScreen) ne serait pas servie.
 - **docker-compose.yml** — 3 profils :
   - `ratiss-server` (VPS/production, port 7860) — `docker compose up ratiss-server -d`
   - `ratiss-hf` (HuggingFace Spaces) — `docker compose --profile huggingface up ratiss-hf -d`
   - `ratiss-dev` (dev local hot-reload, port 12000) — `docker compose --profile dev up ratiss-dev -d`
 - **railway.json** — Deploiement Railway (backend FastAPI stateful).
 - **vercel.json** — Frontend statique servi par Vercel + rewrites vers le backend (Railway/Render/VPS).
-- Volumes persistants : `workspace/`, `data/`, `config/` (vault de cles API).
+- Volumes persistants : `workspace/`, `data/`, `config/` (vault de cles API + `sovereign_memory.json` → la mémoire de Ratiss survit aux redémarrages du conteneur).
+- **requirements.txt** — `python-multipart` ajouté (requis par FastAPI pour les routes `UploadFile`/`Form` de l'import universel `/api/files/upload`).
 
 ## Intégrations externes & import universel (v9.3)
 - **Store souverain** : `kernel/connectors/integrations.py` — 9 intégrations (github, arxiv, zenodo, openalex, crossref, rcsb_pdb, overleaf, ibm_quantum, tavily). État persistant dans `workspace/integrations_state.json`.
