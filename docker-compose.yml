@@ -1,12 +1,14 @@
-# docker-compose.yml — RATISS Aeon Prime multi-environnements
+# docker-compose.yml — RATISS Aeon Prime v9.5 multi-environnements
 #
 # Usage:
 #   VPS / serveur :  docker compose up ratiss-server -d
 #   HuggingFace   :  docker compose up ratiss-hf -d      (port 7860)
 #   Dev local     :  docker compose up ratiss-dev -d     (port 12000, hot reload)
 #
-# Le vault de cles API est monte comme volume persistant (config/).
-# Les workspaces sont persistes dans workspace/.
+# v9.5 : modules sécurité (vuln_scanner + transdisc_security).
+#        Le vault de clés API est monté comme volume persistant (config/).
+#        Les audits chiffrés sont persistés dans audits/.
+#        Les workspaces sont persistés dans workspace/.
 
 services:
   # ── Serveur principal (VPS / production) ──────────────────────────────────
@@ -18,12 +20,16 @@ services:
     volumes:
       - ./workspace:/app/workspace
       - ./data:/app/data
-      - ./config:/app/config        # vault de cles API persistant
+      - ./config:/app/config        # vault de clés API persistant
+      - ./audits:/app/audits        # v9.5: audits chiffrés persistants
     environment:
       - RATISS_HOST=0.0.0.0
       - RATISS_PORT=7860
       - RATISS_RAM_LIMIT_MB=7500
       - PYTHONUNBUFFERED=1
+      # v9.5: module sécurité (désactivé par défaut, activation par mot de passe)
+      - RATISS_VULN_SCANNER_ENABLED=0
+      - RATISS_AUDITS_DIR=/app/audits
       # Injectez vos cles via un .env file (non commite)
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
@@ -47,11 +53,14 @@ services:
     volumes:
       - ./data:/app/data
       - ./config:/app/config
+      - ./audits:/app/audits        # v9.5: audits chiffrés persistants
     environment:
       - RATISS_HOST=0.0.0.0
       - RATISS_PORT=7860
       - RATISS_RAM_LIMIT_MB=7500
       - PYTHONUNBUFFERED=1
+      - RATISS_VULN_SCANNER_ENABLED=0
+      - RATISS_AUDITS_DIR=/app/audits
     restart: unless-stopped
     profiles: ["huggingface"]
 
@@ -65,11 +74,14 @@ services:
       - .:/app
       - /app/app/frontend/node_modules
       - ./config:/app/config
+      - ./audits:/app/audits        # v9.5: audits chiffrés persistants
     environment:
       - RATISS_HOST=0.0.0.0
       - RATISS_PORT=7860
       - RATISS_RAM_LIMIT_MB=7500
       - PYTHONUNBUFFERED=1
+      - RATISS_VULN_SCANNER_ENABLED=0
+      - RATISS_AUDITS_DIR=/app/audits
     command: python -m uvicorn app.server:app --host 0.0.0.0 --port 7860 --reload
     restart: unless-stopped
     profiles: ["dev"]
