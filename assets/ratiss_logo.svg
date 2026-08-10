@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- RATISS Aeon Prime — Logo souverain (fusion quantum + topologie + souveraineté)
+     Propriété intellectuelle : JOHNKING0 & ARCHITECTE JONATHAN EVINA -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="RATISS Aeon Prime">
+  <defs>
+    <!-- dégradés -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0b0b"/>
+      <stop offset="0.55" stop-color="#0e1320"/>
+      <stop offset="1" stop-color="#070a12"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="0.5" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#93c5fd"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.42" r="0.6">
+      <stop offset="0" stop-color="#3b82f6" stop-opacity="0.55"/>
+      <stop offset="0.55" stop-color="#2563eb" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- fond -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#halo)"/>
+
+  <!-- bouclier souverain (contour arrondi) -->
+  <path d="M256 60 L420 116 V264 C420 360 348 430 256 466 C164 430 92 360 92 264 V116 Z"
+        fill="none" stroke="url(#ring)" stroke-width="10" stroke-linejoin="round" opacity="0.55"/>
+
+  <!-- orbites quantiques (3 ellipses croisées) -->
+  <g transform="translate(256 248)" fill="none" stroke="url(#ring)" stroke-width="6" opacity="0.9" filter="url(#glow)">
+    <ellipse rx="118" ry="48"/>
+    <ellipse rx="118" ry="48" transform="rotate(60)"/>
+    <ellipse rx="118" ry="48" transform="rotate(120)"/>
+  </g>
+
+  <!-- réseau topologique (nœuds = points de Betti / graphe) -->
+  <g fill="#bfdbfe" stroke="#60a5fa" stroke-width="2.5" opacity="0.9">
+    <line x1="256" y1="248" x2="188" y2="196"/>
+    <line x1="256" y1="248" x2="328" y2="200"/>
+    <line x1="256" y1="248" x2="206" y2="318"/>
+    <line x1="256" y1="248" x2="312" y2="312"/>
+    <line x1="188" y1="196" x2="328" y2="200"/>
+    <line x1="206" y1="318" x2="312" y2="312"/>
+    <line x1="188" y1="196" x2="206" y2="318"/>
+    <line x1="328" y1="200" x2="312" y2="312"/>
+  </g>
+  <g fill="#dbeafe" stroke="#3b82f6" stroke-width="2">
+    <circle cx="188" cy="196" r="9"/>
+    <circle cx="328" cy="200" r="9"/>
+    <circle cx="206" cy="318" r="9"/>
+    <circle cx="312" cy="312" r="9"/>
+  </g>
+
+  <!-- trou topologique central (le « trou » de Betti) -->
+  <circle cx="256" cy="248" r="26" fill="none" stroke="#a78bfa" stroke-width="4" opacity="0.85" stroke-dasharray="6 6"/>
+
+  <!-- noyau quantique -->
+  <circle cx="256" cy="248" r="13" fill="url(#core)" filter="url(#glow)"/>
+  <circle cx="256" cy="248" r="5" fill="#f8fafc"/>
+
+  <!-- lettres R -->
+  <g fill="#f8fafc" font-family="'Space Grotesk', 'Inter', sans-serif" font-weight="700" text-rendering="geometricPrecision">
+    <text x="256" y="430" font-size="58" text-anchor="middle" letter-spacing="6">RATISS</text>
+    <text x="256" y="452" font-size="13" text-anchor="middle" letter-spacing="4" opacity="0.7">AEON PRIME · SOUVERAIN</text>
+  </g>
+</svg>

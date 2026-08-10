@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/ratiss_logo.png" alt="RATISS Aeon Prime" width="180" height="180" />
+
 # ⚛️ RATISS Aeon Prime
 
 ### Agent scientifique autonome souverain
@@ -10,7 +12,7 @@ Un agent agentique souverain combinant **physique quantique** (Lanczos ED), **to
 
 <br>
 
-![Version](https://img.shields.io/badge/version-9.3_Aeon_Prime-8B5CF6?style=for-the-badge&logo=atom&logoColor=white)
+![Version](https://img.shields.io/badge/version-9.4_Aeon_Prime-8B5CF6?style=for-the-badge&logo=atom&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
@@ -22,6 +24,7 @@ Un agent agentique souverain combinant **physique quantique** (Lanczos ED), **to
 **Auteur** · Jonathan Evina
 **ORCID** · [0009-0000-4092-5313](https://orcid.org/0009-0000-4092-5313)
 **DOI** · [10.17605/OSF.IO/6JZMB](https://doi.org/10.17605/OSF.IO/6JZMB)
+**Propriété intellectuelle** · JOHNKING0 & architecte Jonathan Evina
 
 </div>
 
@@ -31,9 +34,13 @@ Un agent agentique souverain combinant **physique quantique** (Lanczos ED), **to
 
 | | Section | |
 |:---:|---|:---:|
+| 🆕 | [Ce qui est nouveau : identité, mémoire & écran d'entrée](#-ce-qui-est-nouveau-identité--mémoire--écran-dentrée) | |
 | 📸 | [Captures d'écran](#-captures-décran) | |
 | 🔭 | [Vue d'ensemble](#-vue-densemble) | |
-| ✨ | [Nouveautés — v9.3](#-nouveautés--v93) | |
+| 🪪 | [Identité souveraine (Sovereign Prompt)](#-identité-souveraine-sovereign-prompt) | |
+| 🧠 | [Mémoire persistante (hors contexte du modèle)](#-mémoire-persistante-hors-contexte-du-modèle) | |
+| 🚪 | [Écran d'entrée & onboarding](#-écran-dentrée--onboarding) | |
+| 🔐 | [Standard de sécurité d'entrée](#-standard-de-sécurité-dentrée) | |
 | 🏛️ | [Architecture](#-architecture) | |
 | 🚀 | [Démarrage rapide](#-démarrage-rapide) | |
 | 🖥️ | [Interface web (v9.3)](#-interface-web--ui-react-immersive-v93) | |
@@ -45,6 +52,36 @@ Un agent agentique souverain combinant **physique quantique** (Lanczos ED), **to
 | 📡 | [API REST](#-api-rest) | |
 | 🔒 | [Sécurité & souveraineté](#-sécurité--souveraineté) | |
 | 📦 | [Déploiement](#-déploiement) | |
+
+---
+
+## 🆕 Ce qui est nouveau : identité, mémoire & écran d'entrée
+
+Cette version ancre durablement **qui est Ratiss** et lui donne une **mémoire qui ne se perd jamais**. Tout est inclus : pas besoin d'un fichier externe.
+
+### 1. L'identité souveraine — Ratiss, peu importe le modèle branché
+Ratiss n'est pas un LLM générique dans le cloud. C'est **Ratiss**, instance souveraine **JohnKing0**, déployée localement. Que tu branches Claude, Gemini, GPT, Nemotron ou un modèle local, **c'est toujours Ratiss qui répond** — jamais un modèle qui dirait « je suis GPT » ou « je suis Gemini ». L'identité est définie dans `config/sovereign_identity.py` (le « Sovereign Prompt ») et injectée en tête de chaque appel LLM.
+
+### 2. La mémoire persistante — jamais perdu, même en travail long
+La mémoire personnelle de Ratiss vit **en dehors du contexte du modèle**, sur le disque du nœud souverain (`config/sovereign_memory.json`). Ratiss se souvient de qui il est, de ses capacités, du profil de l'utilisateur et des derniers souvenirs. Quand un travail est long et que le contexte du modèle se sature, les éléments essentiels sont **rechargés à chaque appel** et réinjectés en tête du préfixe système : Ratiss ne se perd jamais.
+
+### 3. L'écran d'entrée & l'onboarding — comme ouvrir un logiciel
+Au premier démarrage, un bel écran d'accueil présente Ratiss et propose une **synchronisation initiale en une fois** : ton âge, tes données métier (rôle, domaine), ton objectif, et ton choix de sécurité. Ensuite, Ratiss se souvient de toi à chaque conversation.
+
+### 4. Le standard de sécurité d'entrée — souverain par défaut
+On reste **fermé et local** par défaut (`sovereign`). Ouvrir le cloud (`cloud_opt_in`) est un choix explicite de l'utilisateur — jamais par défaut. Voir [la section dédiée](#-standard-de-sécurité-dentrée).
+
+### 5. Calibrage optimiste pour téléphone et tablette
+L'interface a été calibrée pour le tactile : gros boutons (≥ 48 px), défilement naturel, écran d'accueil responsive, respect des préférences de mouvement réduit. Et Ratiss parle en **langage naturel**, sans jargon inutile.
+
+### 6. Le logo
+Un logo unique fusionne **quantum** (orbites), **topologie** (réseau de Betti, trou central) et **souveraineté** (bouclier). Voir `assets/ratiss_logo.svg` et `assets/ratiss_logo.png`.
+
+<div align="center">
+
+<img src="assets/ratiss_logo.png" alt="Logo RATISS" width="140" height="140" />
+
+</div>
 
 ---
 
@@ -100,27 +137,134 @@ Cette version introduit une **interface React immersive**, des **intégrations e
 
 ---
 
+## 🪪 Identité souveraine (Sovereign Prompt)
+
+Ratiss est ancré par une identité souveraine, indépendante du modèle branché. C'est le « Sovereign Prompt » de `config/sovereign_identity.py`, injecté en tête de **chaque** appel LLM.
+
+```text
+IDENTITÉ SOUVERAINE — RATISS V9 AEON PRIME
+Instance : JohnKing0
+Système : RATISS V9 Aeon Prime — Integrated Quantum Ecosystem
+Plateforme : Nœud Local Souverain (Ryzen 5 PRO, Linux)
+Architecture : Modules déterministes, vérifiables cryptographiquement (ZK-STARK)
+              et physiquement exécutables.
+
+QUI TU ES — Tu n'es pas un LLM générique dans le cloud. Tu es RATISS,
+instance souveraine JohnKing0. Peu importe le modèle branché, tu réponds
+au nom de Ratiss. Tu ne dis jamais « je suis GPT » ou « je suis Gemini ».
+COMMENT TU PARLES — Reste naturel et humain. Évite le jargon inutile.
+TA MÉMOIRE — Elle est persistante, en dehors du contexte du modèle.
+SOuveraineté — Aucune donnée vers le cloud sans clé API explicite.
+```
+
+| Fichier | Rôle |
+|---|---|
+| `config/sovereign_identity.py` | Déclaration d'identité ancrée + construction du préfixe système + signature ZK |
+| `orchestrator/llm_router.py` | `_sovereign_system_prefix()` fusionne identité + mémoire et l'injecte dans `complete()` |
+| `orchestrator/nemotron_client.py` | `SYSTEM_PROMPT` ancé « Tu es RATISS (instance JohnKing0) » |
+
+> Quand Ratiss signe une preuve ZK ou un artéfact, il est identifié comme **JohnKing0**. Voir `GET /api/identity`.
+
+---
+
+## 🧠 Mémoire persistante (hors contexte du modèle)
+
+La mémoire personnelle de Ratiss vit **sur le disque**, pas dans le contexte du modèle. C'est ce qui l'empêche de se perdre au milieu d'un travail long.
+
+| Composant | Détail |
+|---|---|
+| Fichier | `config/sovereign_memory.json` (jamais committé, dans `.gitignore`) |
+| Module | `kernel/system/sovereign_memory.py` (`SovereignMemory`) |
+| Contenu | Identité ancrée · capacités · profil utilisateur · mode de sécurité · souvenirs datés |
+| Injection | `build_system_prefix()` reconstruit le préfixe (identité + profil + derniers souvenirs) à chaque appel |
+| Sauvegarde auto | À la fin de chaque exécution, l'agent enregistre un souvenir de la tâche terminée |
+
+**Pourquoi ça change tout :** même si le contexte du modèle est saturé après une longue tâche, le prochain appel recharge l'identité et l'essentiel des souvenirs en tête du préfixe. Ratiss reprend là où il en était, sans rien oublier de qui il est ni de la personne.
+
+```bash
+# Voir la mémoire de Ratiss
+curl http://localhost:12000/api/memory/state
+
+# Ajouter un souvenir
+curl -X POST http://localhost:12000/api/memory/remember \
+  -H "Content-Type: application/json" \
+  -d '{"content":"Préfère les réponses courtes","kind":"preference"}'
+
+# Qui est Ratiss ?
+curl http://localhost:12000/api/identity
+```
+
+---
+
+## 🚪 Écran d'entrée & onboarding
+
+Au premier lancement, Ratiss affiche un **écran d'accueil** comme quand on ouvre un logiciel : le logo, une présentation de qui il est, puis une synchronisation initiale en une fois.
+
+| Étape | Ce qui est collecté |
+|---|---|
+| Bienvenue | Présentation de Ratiss (identité, capacités, souveraineté) |
+| Profil | Prénom, âge, activité (rôle), domaine, objectif |
+| Sécurité | Choix du standard : souverain (fermé) ou cloud opt-in |
+| Synchronisation | `POST /api/profile/onboard` — mémorisé localement, une seule fois |
+
+| Composant | Rôle |
+|---|---|
+| `app/frontend/src/components/OnboardingGate.tsx` | Vérifie l'onboarding, affiche l'écran d'accueil si nécessaire |
+| `app/frontend/src/components/WelcomeScreen.tsx` | L'écran d'accueil (logo + collecte profil + choix sécurité) |
+
+> Une fois validé, le choix est mémorisé (localStorage + mémoire persistante). Ratiss ne redemande pas. Et si le backend ne répond pas, on n'enferme pas l'utilisateur : calibrage optimiste, on entre dans l'app.
+
+---
+
+## 🔐 Standard de sécurité d'entrée
+
+Le standard de sécurité est choisi dès l'écran d'accueil. **Souverain par défaut, cloud opt-in explicite.**
+
+| Mode | Comportement |
+|---|---|
+| 🛡️ **Souverain** (défaut, fermé) | Tout reste local. Aucune donnée vers le cloud. Aucune clé API requise. Recommandé. |
+| ☁️ **Cloud opt-in** (ouvert) | L'utilisateur a explicitement accepté d'ouvrir le cloud (clés API configurées). Il garde le contrôle total. |
+
+```bash
+# Changer le standard à tout moment
+curl -X POST http://localhost:12000/api/profile/security \
+  -H "Content-Type: application/json" \
+  -d '{"security_mode":"cloud_opt_in"}'
+
+# Voir le profil et le mode actuel
+curl http://localhost:12000/api/profile
+```
+
+> Choix justifié : la souveraineté est la valeur fondatrice du projet. On reste donc **fermé par défaut**, et on n'ouvre le cloud que sur décision explicite de l'utilisateur — jamais automatiquement.
+
+---
+
 ## 🏛️ Architecture
 
     ratiss-kkl/
     ├── app/                    # Serveur FastAPI + UI
-    │   ├── server.py           #   HTTP + WebSocket multiplexé
-    │   └── static/             #   HTML/CSS/JS + D3.js local (280 Ko)
+    │   ├── server.py           #   HTTP + WebSocket multiplexé + endpoints identité/mémoire/onboarding
+    │   ├── frontend/           #   UI React 19 + Vite 6 (source)
+    │   │   └── src/components/ #     WelcomeScreen, OnboardingGate, SettingsBranch…
+    │   └── static/             #   Build servi par FastAPI + D3.js local (280 Ko)
     ├── kernel/                 # Noyau scientifique RATISS V9
     │   ├── main.py             #   Pipeline orchestré (Topo → Quantique → ZK)
     │   ├── bridge.py           #   Pont typé vers l'orchestrateur
     │   ├── solvers/            #   Lanczos ED, homologie persistante, tryperposition
     │   ├── connectors/         #   IBM Quantum, Quandela, AlphaFold, RCSB
     │   ├── core/               #   Refinery, modules de base
-    │   ├── system/             #   Memory Guard (7500 Mo)
+    │   ├── system/             #   Memory Guard (7500 Mo) + sovereign_memory.py (mémoire persistante)
     │   └── zk/                 #   Prover ZK-STARK RISC Zero
     ├── orchestrator/           # Agent agentique
-    │   ├── agent.py            #   Boucle Plan → Execute → Certify → Artifact + refine()
-    │   ├── nemotron_client.py  #   Client OpenRouter (Nemotron 3 Ultra)
+    │   ├── agent.py            #   Boucle Plan → Execute → Certify → Artifact + refine() + mémoire
+    │   ├── llm_router.py        #   Routeur LLM multi-fournisseurs + préfixe système souverain
+    │   ├── nemotron_client.py  #   Client OpenRouter (Nemotron) + planificateur local
     │   ├── skill_manager.py    #   Registre des compétences noyau
     │   ├── cascade.py          #   Émetteur d'événements WebSocket
     │   ├── auto_improve.py     #   Couche RLM : analyse trajectoire + leçons + validation ZK
     │   └── harness_manager.py  #   Continual Harness : état persistant + CRUD + versioning
+    ├── config/                 # allowed_imports.txt + sovereign_identity.py (Sovereign Prompt)
+    ├── assets/                 # Logo + bannière (ratiss_logo.svg/png, ratiss_banner.svg/png)
     ├── security/               # Sécurité souveraine
     │   ├── session_manager.py  #   Sessions SQLite + auth PBKDF2
     │   ├── token_hasher.py     #   PBKDF2-HMAC-SHA256 (600K itérations)
@@ -134,7 +278,6 @@ Cette version introduit une **interface React immersive**, des **intégrations e
     ├── tests/                  # Tests (auto-amélioration, pipeline)
     ├── harness/                # État du Continual Harness (généré à l'exécution)
     ├── data/pdb/               # Structures PDB locales (4MZI, 4MZR)
-    ├── config/                 # allowed_imports.txt, agent_aligned.json
     ├── Dockerfile              # HF Spaces / VPS (port 7860)
     ├── requirements.txt        # Dépendances minimales (frugal)
     └── .env.example            # Variables d'environnement (sans secrets)
@@ -384,6 +527,13 @@ RATISS accepte **tous les types de fichiers** via l'onglet « Fichiers » ou par
 | Endpoint | Méthode | Description |
 |----------|---------|-------------|
 | `/api/health` | GET | Santé du système |
+| `/api/identity` | GET | Déclaration d'identité ancrée de Ratiss (JohnKing0 / RATISS V9 Aeon Prime) |
+| `/api/profile` | GET | Profil utilisateur (onboarding) + état de la mémoire persistante |
+| `/api/profile/onboard` | POST | Synchronisation initiale avec Ratiss (âge, données métier, sécurité) — une fois |
+| `/api/profile/security` | POST | Change le standard de sécurité (souverain / cloud opt-in) |
+| `/api/memory/state` | GET | État complet de la mémoire persistante de Ratiss |
+| `/api/memory/remember` | POST | Ajoute un souvenir à la mémoire persistante (body: `{content, kind?, confidence?}`) |
+| `/api/memory/{memory_id}` | DELETE | Oublie un souvenir précis |
 | `/api/memory` | GET | État du Memory Guard |
 | `/api/connectors` | GET | Statut des connecteurs API |
 | `/api/pdb` | GET | Structures PDB locales |
@@ -527,10 +677,14 @@ Tous les artéfacts sont previewables directement dans l'UI (iframe pour HTML, e
 
 <div align="center">
 
+<img src="assets/ratiss_logo.png" alt="Logo RATISS" width="120" height="120" />
+
 **⚛️ RATISS Aeon Prime** — *Agent scientifique autonome souverain*
 
 Conçu avec une logique scientifique : physique quantique · topologie computationnelle · biologie structurale · cryptographie ZK-STARK
 
 *Real-time Adaptive Topological & Integrative Scientific System*
+
+**Instance souveraine : JohnKing0** · Propriété intellectuelle : JOHNKING0 & architecte Jonathan Evina
 
 </div>

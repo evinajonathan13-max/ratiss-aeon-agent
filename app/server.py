@@ -83,6 +83,151 @@ async def health():
     return {"status": "ok", "version": "9.0.0", "kernel": "ratiss_v9_aeon_prime"}
 
 
+# ── Logo & bannière (assets statiques) ────────────────────────────────────────
+from fastapi.responses import Response as _Response
+
+
+@app.get("/assets/logo.svg")
+async def logo_svg():
+    p = _ROOT / "assets" / "ratiss_logo.svg"
+    if p.exists():
+        return _Response(content=p.read_text(encoding="utf-8"), media_type="image/svg+xml")
+    return JSONResponse({"error": "not_found"}, status_code=404)
+
+
+@app.get("/assets/logo.png")
+async def logo_png():
+    p = _ROOT / "assets" / "ratiss_logo.png"
+    if p.exists():
+        return _Response(content=p.read_bytes(), media_type="image/png")
+    return JSONResponse({"error": "not_found"}, status_code=404)
+
+
+# ── Identité souveraine & mémoire persistante ─────────────────────────────────
+
+
+@app.get("/api/identity")
+async def identity():
+    """Déclaration d'identité ancrée de Ratiss (JohnKing0 / RATISS V9 Aeon Prime)."""
+    from config.sovereign_identity import identity_signature, who_am_i
+
+    return {
+        "who_am_i": who_am_i(),
+        "signature": identity_signature(),
+    }
+
+
+@app.get("/api/profile")
+async def profile_get():
+    """Profil utilisateur (onboarding) + état de la mémoire persistante."""
+    from kernel.system.sovereign_memory import get_memory
+
+    mem = get_memory()
+    return {
+        "profile": mem.get_profile(),
+        "onboarded": mem.is_onboarded(),
+        "security_mode": mem.get_security_mode(),
+        "capabilities": mem.list_capabilities(),
+        "memories": mem.list_memories(limit=50),
+    }
+
+
+@app.post("/api/profile/onboard")
+async def profile_onboard(body: dict = None):
+    """Synchronisation initiale avec Ratiss (une fois).
+
+    Récupère l'âge, les données métier (rôle, domaine, objectif) et le mode de
+    sécurité choisi, puis enregistre le tout dans la mémoire persistante. À
+    partir de là, Ratiss se souvient de l'utilisateur à chaque conversation.
+
+    Body: {
+      display_name, age, role, domain, business{role,domain}, goal,
+      security_mode: "sovereign" | "cloud_opt_in"
+    }
+    """
+    from kernel.system.sovereign_memory import get_memory
+
+    body = body or {}
+    profile = {
+        "display_name": (body.get("display_name") or body.get("name") or "").strip(),
+        "age": body.get("age"),
+        "role": (body.get("role") or "").strip(),
+        "domain": (body.get("domain") or "").strip(),
+        "goal": (body.get("goal") or "").strip(),
+    }
+    business = body.get("business") or {}
+    if business.get("role"):
+        profile["role"] = profile["role"] or business["role"]
+    if business.get("domain"):
+        profile["domain"] = profile["domain"] or business["domain"]
+
+    mem = get_memory()
+    saved = mem.set_profile(profile, mark_onboarded=True)
+
+    # Standard de sécurité d'entrée : souverain (fermé) par défaut, cloud opt-in
+    # seulement si l'utilisateur l'accepte explicitement.
+    mode = body.get("security_mode", "sovereign")
+    if mode in ("sovereign", "cloud_opt_in"):
+        try:
+            mem.set_security_mode(mode)
+        except Exception:
+            pass
+
+    return {
+        "status": "ONBOARDED",
+        "profile": saved,
+        "security_mode": mem.get_security_mode(),
+        "message": f"Bienvenue {saved.get('display_name') or ''} ! Ratiss a mémorisé ton profil.",
+    }
+
+
+@app.post("/api/profile/security")
+async def profile_security(body: dict = None):
+    """Change le standard de sécurité d'entrée (souverain / cloud opt-in)."""
+    from kernel.system.sovereign_memory import get_memory
+
+    body = body or {}
+    mode = body.get("security_mode", "sovereign")
+    try:
+        get_memory().set_security_mode(mode)
+        return {"status": "OK", "security_mode": mode}
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.get("/api/memory/state")
+async def memory_state():
+    """État complet de la mémoire persistante de Ratiss."""
+    from kernel.system.sovereign_memory import get_memory
+
+    return get_memory().state()
+
+
+@app.post("/api/memory/remember")
+async def memory_remember(body: dict = None):
+    """Ajoute un souvenir à la mémoire persistante de Ratiss."""
+    from kernel.system.sovereign_memory import get_memory
+
+    body = body or {}
+    content = (body.get("content") or "").strip()
+    if not content:
+        return JSONResponse({"error": "empty_content"}, status_code=400)
+    entry = get_memory().remember(
+        content,
+        kind=body.get("kind", "note"),
+        confidence=body.get("confidence", 0.8),
+    )
+    return {"status": "REMEMBERED", "entry": entry}
+
+
+@app.delete("/api/memory/{memory_id}")
+async def memory_forget(memory_id: str):
+    from kernel.system.sovereign_memory import get_memory
+
+    deleted = get_memory().forget(memory_id)
+    return {"status": "OK" if deleted else "NOT_FOUND", "deleted": deleted}
+
+
 @app.get("/api/memory")
 async def memory():
     return bridge.get_memory_status()
