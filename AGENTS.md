@@ -30,7 +30,7 @@
     - `src/lib/` — browserTts, pdfReportGenerator
     - build → `app/static/` (servi par FastAPI)
 - `security/` — Sessions, PBKDF2, isolation workspace, NemoSandbox
-- `screenshots/` — 4 captures d'écran (dashboard, arXiv+PDF, preview, terminal)
+- `screenshots/` — 8 captures d'écran (UI React v9.3)
 
 ## 23 compétences
 - **6 scientifiques** : load_pdb, topology, quantum_ed, zk_proof, full_pipeline, tryperposition

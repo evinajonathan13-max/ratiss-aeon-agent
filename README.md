@@ -31,49 +31,42 @@ Un agent agentique souverain combinant **physique quantique** (Lanczos ED), **to
 
 | | Section | |
 |:---:|---|:---:|
-| 📸 | [Captures d'écran](#-captures-décran) | |
-| 🔭 | [Vue d'ensemble](#-vue-densemble) | |
-| ✨ | [Nouveautés v9.3](#-nouveautés--v93) | |
-| 🏛️ | [Architecture](#%EF%B8%8F-architecture) | |
-| 🚀 | [Démarrage rapide](#-démarrage-rapide) | |
-| 🖥️ | [Interface React immersive](#%EF%B8%8F-interface-web--ui-react-immersive-v93) | |
-| 🔌 | [Intégrations externes](#-intégrations-externes-chaîne-de-recherche-ouverte) | |
-| 📁 | [Import de fichiers universel](#-import-de-fichiers-universel) | |
-| 🧠 | [Routeur LLM multi-fournisseurs](#-routeur-llm-multi-fournisseurs) | |
-| 🔄 | [Auto-amélioration (RLM)](#-couche-dauto-amélioration-rlm--continual-harness-v92) | |
-| 🛠️ | [Compétences (23 actions)](#%EF%B8%8F-compétences-23-actions) | |
-| 📡 | [API REST](#-api-rest) | |
-| 🔒 | [Sécurité & souveraineté](#-sécurité--souveraineté) | |
-| 📦 | [Déploiement & dépendances](#-déploiement--dépendances) | |
+| 📸 | [Captures d'écran](#captures-décran) | |
+| 🔭 | [Vue d'ensemble](#vue-densemble) | |
+| ✨ | [Nouveautés — v9.3](#nouveautés--v93) | |
+| 🏛️ | [Architecture](#architecture) | |
+| 🚀 | [Démarrage rapide](#démarrage-rapide) | |
+| 🖥️ | [Interface web — UI React immersive (v9.3)](#interface-web--ui-react-immersive-v93) | |
+| 🔌 | [Intégrations externes — Chaîne de recherche ouverte](#intégrations-externes--chaîne-de-recherche-ouverte) | |
+| 📁 | [Import de fichiers universel](#import-de-fichiers-universel) | |
+| 🧠 | [Routeur LLM multi-fournisseurs](#routeur-llm-multi-fournisseurs) | |
+| 🔄 | [Couche d'auto-amélioration (RLM / Continual Harness) — v9.2](#couche-dauto-amélioration-rlm--continual-harness--v92) | |
+| 🛠️ | [Compétences — 23 actions](#compétences--23-actions) | |
+| 📡 | [API REST](#api-rest) | |
+| 🔒 | [Sécurité & souveraineté](#sécurité--souveraineté) | |
+| 📦 | [Déploiement & dépendances](#déploiement--dépendances) | |
 
 ---
 
 ## 📸 Captures d'écran
 
-### Interface historique — pipeline complet
+### Interface React v9.3 — Pipeline Aeon Prime
 
-| Dashboard complet | Recherche arXiv + PDF |
+| Interface principale (Chat) | Paramètres (6 onglets) |
 |:---:|:---:|
-| ![Dashboard](screenshots/01-dashboard-full-task.png) | ![arXiv+PDF](screenshots/02-arxiv-pdf-generation.png) |
+| ![Main Chat](screenshots/01-main-chat.png) | ![Settings](screenshots/02-settings-tabs.png) |
 
-| Preview PDF intégré | Terminal en action |
+| Modèles & LLM | Agent & Science |
 |:---:|:---:|
-| ![PDF Preview](screenshots/03-pdf-preview.png) | ![Terminal](screenshots/04-terminal-execution.png) |
+| ![Models](screenshots/03-models-llm.png) | ![Agent Science](screenshots/04-agent-science.png) |
 
-### Interface React v9.3
+| Intégrations | Gestionnaire de fichiers |
+|:---:|:---:|
+| ![Integrations](screenshots/05-integrations-full.png) | ![File Manager](screenshots/06-file-manager.png) |
 
-Voir `screenshots/ui-v9.3/` :
-
-| Capture | Description |
-|---|---|
-| `01-main-chat.png` | Interface principale (chat + sidebar + sélecteur de mode) |
-| `02-settings-tabs.png` | Branche Paramètres — navigation par 6 onglets |
-| `03-models-llm.png` | Onglet « Modèles & LLM » — clés API multi-provider + catalogue |
-| `04-agent-science.png` | Onglet « Agent & Science » — profondeur, ZK auto, PDF auto, ORCID |
-| `05-integrations.png` | Onglet « Intégrations » — GitHub (priorité) + 8 intégrations |
-| `06-file-manager.png` | Onglet « Fichiers » — import universel drag & drop |
-| `07-file-manager-with-file.png` | Fichier importé (CSV auto-détecté) + actions d'analyse |
-| `08-sovereign-lab.png` | SovereignLab — modules quantum t-J, topologie, pipeline Aeon |
+| Analyse de fichiers | Sovereign Lab |
+|:---:|:---:|
+| ![File Analysis](screenshots/07-file-manager-with-file.png) | ![Sovereign Lab](screenshots/08-sovereign-lab.png) |
 
 ---
 
