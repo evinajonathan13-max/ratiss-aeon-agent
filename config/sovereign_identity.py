@@ -25,7 +25,7 @@ from typing import Any
 
 INSTANCE_NAME = "JohnKing0"
 SYSTEM_NAME = "RATISS V9 Aeon Prime"
-SYSTEM_VERSION = "9.4.1"
+SYSTEM_VERSION = "9.5"
 INTEGRATED_ECOSYSTEM = "Integrated Quantum Ecosystem"
 
 # L'instance est identifiée comme JohnKing0 lors de la signature des preuves ZK.

@@ -12,7 +12,7 @@ Un agent agentique souverain combinant **physique quantique** (Lanczos ED), **to
 
 <br>
 
-![Version](https://img.shields.io/badge/version-9.4.1_Aeon_Prime-8B5CF6?style=for-the-badge&logo=atom&logoColor=white)
+![Version](https://img.shields.io/badge/version-9.5_Aeon_Prime-8B5CF6?style=for-the-badge&logo=atom&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
@@ -48,7 +48,7 @@ Un agent agentique souverain combinant **physique quantique** (Lanczos ED), **to
 | 📁 | [Import universel](#import-universel) | |
 | 🧠 | [Routeur LLM](#routeur-llm) | |
 | 🔄 | [Auto-amélioration (RLM)](#auto-amelioration) | |
-| 🛠️ | [Compétences (29 actions)](#competences) | |
+| 🛠️ | [Compétences (36 actions)](#competences) | |
 | 📡 | [API REST](#api-rest) | |
 | 🔒 | [Sécurité & souveraineté](#securite-souverainete) | |
 | 📦 | [Déploiement](#deploiement) | |
@@ -57,6 +57,19 @@ Un agent agentique souverain combinant **physique quantique** (Lanczos ED), **to
 
 <a id="nouveau"></a>
 ## 🆕 Ce qui est nouveau
+
+### 🛡️ v9.5 — Module de scan de vulnérabilités (audit défensif légal)
+
+Nouveau module **vuln_scanner** : un scanner de vulnérabilités **bridé architecturalement** pour l'audit défensif et légal. Inspiré des outils d'audit professionnels, il permet de scanner un système (réseau, web, code source, configuration) et de produire un rapport de vulnérabilités — mais ne peut **JAMAIS** exploiter, brute-forcer, ou installer de backdoor.
+
+- **Authentification** : module désactivé par défaut, activé par mot de passe opérateur (haché PBKDF2, jamais en clair)
+- **Bridage architectural** : 40+ actions offensives interdites par construction (`exploit`, `brute_force`, `reverse_shell`, `metasploit`, `backdoor`, `ddos`...)
+- **Scans** : réseau (ports, services, bannières), web (headers, TLS, fuite d'infos), SAST (SQLi, XSS, secrets codés en dur, désérialisation, crypto faible), config (fichiers sensibles, permissions)
+- **Rapport** : sévérités CRITICAL/HIGH/MEDIUM/LOW, alignement OWASP Top 10 2021, recommandations de remédiation
+- **Cas d'usage** : consultation cybersécurité entreprise, audit pré-contractuel, souveraineté africaine
+- **Tests** : 69 tests dédiés (88 tests au total, 0 échec)
+
+Voir [la section dédiée](#vuln-scanner).
 
 ### 🔒 v9.4.1 — Durcissement sécurité (audit post-tests)
 
@@ -609,7 +622,7 @@ RATISS accepte **tous les types de fichiers** via l'onglet « Fichiers » ou par
 | `/ws` | WebSocket | Canal multiplexé temps réel (chat + terminal + browser + python) |
 
 <a id="competences"></a>
-## 🛠️ Compétences (29 actions)
+## 🛠️ Compétences (36 actions)
 
 ### 🔬 Scientifiques (6)
 | Action | Description | Catégorie |
@@ -648,6 +661,19 @@ Sécurité : allowlist stricte, détection de patterns dangereux par sous-chaîn
 | `generate_chart` | Graphique PNG (bar, line, scatter, pie — matplotlib) | Contenu |
 | `generate_webpage` | Page HTML previewable (style intégré) | Contenu |
 | `generate_betti_diagram` | Diagramme de persistance (topologie) | Contenu |
+
+### 🛡️ Scan de vulnérabilités (7) — audit défensif légal
+| Action | Description | Catégorie |
+|--------|-------------|-----------|
+| `vuln_authenticate` | Activer le mode scan (mot de passe opérateur requis) | VulnScan |
+| `vuln_scan_network` | Scan réseau (ports, services, bannières) | VulnScan |
+| `vuln_audit_web` | Audit web (headers, TLS, configuration) | VulnScan |
+| `vuln_audit_code` | SAST — audit statique de code source | VulnScan |
+| `vuln_audit_config` | Audit config (fichiers sensibles, permissions) | VulnScan |
+| `vuln_scan_full` | Audit complet consolidé (réseau + web + code + config) | VulnScan |
+| `vuln_get_report` | Rapport consolidé JSON des vulnérabilités | VulnScan |
+
+⚠️ **Module bridé** : détecte et rapporte uniquement. Ne peut PAS attaquer, exploiter, brute-forcer ou installer de backdoor. Voir [la section dédiée](#vuln-scanner).
 
 ### 🤖 Outils agentiques (5) — v9.1
 | Action | Description | Catégorie |
@@ -700,6 +726,55 @@ Tous les artéfacts sont previewables directement dans l'UI (iframe pour HTML, e
 | 7 | ZK-STARK faux positifs sur structure mal formée | 🔴 HAUTE | ✅ Invariants stricts |
 
 **Validation finale** : 19/19 tests pytest · 7/7 tests cybersécurité · 0 DeprecationWarning.
+
+<a id="vuln-scanner"></a>
+### 🛡️ Module de scan de vulnérabilités — audit défensif légal
+
+RATISS intègre un **module de scan de vulnérabilités** inspiré des outils d'audit professionnels, conçu pour un usage **défensif et légal** : audit de vos propres systèmes ou de systèmes avec autorisation explicite (pentest, bug bounty, consultation).
+
+#### Activation par mot de passe
+Le module est **désactivé par défaut**. Il ne s'active qu'après authentification par l'opérateur souverain (mot de passe haché PBKDF2, 600K itérations — jamais stocké en clair). Une session dure 2 heures.
+
+```
+# Via l'API ou l'agent :
+vuln_authenticate(password="••••••••••••")  # Active le mode scan
+vuln_scan_full(host="example.com", url="https://example.com", code_path="./src")
+```
+
+#### Bridage architectural — RATISS ne peut PAS attaquer
+
+Le module est **bridé par construction**. Il détecte et rapporte, mais ne peut JAMAIS :
+
+| ❌ Action interdite | ✅ Action autorisée |
+|---|---|
+| Exploiter (Metasploit, payloads, SQLi/XSS/RCE) | Détecter les patterns vulnérables (SAST) |
+| Brute-force de mots de passe | Vérifier la présence de headers de sécurité |
+| Installer backdoors / reverse shells | Lister les ports ouverts (TCP connect passif) |
+| Modifier / supprimer / défigurer | Lire les bannières de services |
+| DDoS / syn flood / slowloris | Rapporter avec recommandations de remédiation |
+
+Toute tentative d'appeler une action offensive lève `RuntimeError("ACTION_OFFENSIVE_INTERDITE")`.
+
+#### Capacités de scan
+
+| Scanner | Description |
+|---------|-------------|
+| **Réseau** (`vuln_scan_network`) | Détection de ports ouverts (TCP connect), fingerprinting passif de bannières, détection de services non sécurisés (FTP, Telnet, Redis sans auth, RDP/SMB exposé) |
+| **Web** (`vuln_audit_web`) | Analyse des headers de sécurité (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy), vérification TLS (version, cipher, expiration du certificat), détection de fuite d'informations (Server, X-Powered-By) |
+| **SAST** (`vuln_audit_code`) | Analyse statique de code source : SQL injection, XSS, secrets codés en dur (API keys, AWS, GitHub PAT, private keys), désérialisation non sécurisée (pickle, yaml.load, eval), path traversal, fonctions dangereuses (eval, exec, os.system), crypto faible (MD5, SHA1, DES, ECB), debug en production |
+| **Config** (`vuln_audit_config`) | Détection de fichiers sensibles exposés (.env, .git/credentials, id_rsa, .npmrc, .pgpass, wp-config.php), vérification des permissions (world-readable) |
+| **Consolidé** (`vuln_scan_full`) | Tous les scans ci-dessus + rapport consolidé avec sévérités (CRITICAL/HIGH/MEDIUM/LOW), référence OWASP Top 10 2021, et recommandations de remédiation |
+
+#### Cas d'usage entreprise (consultation cybersécurité)
+
+1. **Audit pré-contractuel** : Scanner le système d'un prospect pour produire un rapport de vulnérabilités et démontrer la valeur d'ARTISS comme système souverain.
+2. **Rapport de remédiation** : « Voici ce que nous avons découvert, voici comment corriger » — l'outil est bridé donc vous pouvez montrer le code source en toute transparence au client.
+3. **Conformité** : Alignement OWASP Top 10 2021, recommandations NIST/OWASP, traçabilité (scan_id, timestamp).
+4. **Souveraineté africaine** : 100 % local, aucun cloud, aucune donnée envoyée à l'extérieur. ARTISS comme alternative souveraine à la Silicon Valley pour le marché camerounais et africain.
+
+> ⚠️ **Cadre légal** : Au Cameroun, la loi n° 2010/013 sur la cybersécurité (Articles 78-80) et la Convention de Budapest sur la cybercriminalité encadrent le scan de systèmes. Scannez uniquement les systèmes dont vous êtes propriétaire ou avec autorisation explicite et écrite.
+
+**Tests** : 69/69 tests dédiés (bridage, auth, SAST, config, réseau, rapport).
 
 ---
 

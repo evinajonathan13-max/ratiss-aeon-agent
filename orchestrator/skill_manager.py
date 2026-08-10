@@ -297,6 +297,136 @@ def _redteam_full(params: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+# ── Scan de vulnérabilités DÉFENSIF (bridé, authentifié) ─────────────────────
+# Module d'audit de sécurité éthique : détecte et rapporte, n'attaque JAMAIS.
+
+def _vuln_authenticate(params: dict[str, Any]) -> dict[str, Any]:
+    """Active le mode scan de vulnérabilités après vérification du mot de passe."""
+    from security import vuln_auth
+    password = params.get("password", "")
+    result = vuln_auth.authenticate(password)
+    if result["status"] != "success":
+        result["status"] = "AUTH_DENIED"
+    return {"status": result["status"], "result": result}
+
+
+def _vuln_scan_network(params: dict[str, Any]) -> dict[str, Any]:
+    """Scan réseau défensif : détection de ports ouverts et services."""
+    from security.vuln_scanner import VulnerabilityScanner
+    scanner = VulnerabilityScanner()
+    host = params.get("host", "")
+    ports = params.get("ports")
+    timeout = float(params.get("timeout", 2.0))
+    try:
+        result = scanner.scan_network(host, ports, timeout)
+        return {"status": result["status"], "result": result, "findings": scanner.findings}
+    except PermissionError as e:
+        return {"status": "AUTH_REQUIRED", "error": str(e)}
+    except Exception as e:
+        logger.exception("[VULN-SCAN] Erreur scan réseau")
+        return {"status": "ERROR", "error": str(e)}
+
+
+def _vuln_audit_web(params: dict[str, Any]) -> dict[str, Any]:
+    """Audit web défensif : headers de sécurité, TLS, configuration."""
+    from security.vuln_scanner import VulnerabilityScanner
+    scanner = VulnerabilityScanner()
+    url = params.get("url", "")
+    timeout = float(params.get("timeout", 10.0))
+    try:
+        result = scanner.audit_web(url, timeout)
+        return {"status": result["status"], "result": result, "findings": scanner.findings}
+    except PermissionError as e:
+        return {"status": "AUTH_REQUIRED", "error": str(e)}
+    except Exception as e:
+        logger.exception("[VULN-SCAN] Erreur audit web")
+        return {"status": "ERROR", "error": str(e)}
+
+
+def _vuln_audit_code(params: dict[str, Any]) -> dict[str, Any]:
+    """SAST : analyse statique de code source pour patterns vulnérables."""
+    from security.vuln_scanner import VulnerabilityScanner
+    scanner = VulnerabilityScanner()
+    path = params.get("path", ".")
+    extensions = params.get("extensions")
+    try:
+        result = scanner.audit_code(path, extensions)
+        return {"status": result["status"], "result": result, "findings": scanner.findings}
+    except PermissionError as e:
+        return {"status": "AUTH_REQUIRED", "error": str(e)}
+    except Exception as e:
+        logger.exception("[VULN-SCAN] Erreur audit code")
+        return {"status": "ERROR", "error": str(e)}
+
+
+def _vuln_audit_config(params: dict[str, Any]) -> dict[str, Any]:
+    """Audit config : fichiers sensibles exposés, permissions laxistes."""
+    from security.vuln_scanner import VulnerabilityScanner
+    scanner = VulnerabilityScanner()
+    path = params.get("path", ".")
+    try:
+        result = scanner.audit_config(path)
+        return {"status": result["status"], "result": result, "findings": scanner.findings}
+    except PermissionError as e:
+        return {"status": "AUTH_REQUIRED", "error": str(e)}
+    except Exception as e:
+        logger.exception("[VULN-SCAN] Erreur audit config")
+        return {"status": "ERROR", "error": str(e)}
+
+
+def _vuln_scan_full(params: dict[str, Any]) -> dict[str, Any]:
+    """Audit complet consolidé : réseau + web + code + config + rapport."""
+    from security.vuln_scanner import VulnerabilityScanner
+    scanner = VulnerabilityScanner()
+    host = params.get("host", "")
+    url = params.get("url", "")
+    code_path = params.get("code_path", "")
+    config_path = params.get("config_path", code_path or ".")
+    components: dict[str, Any] = {}
+
+    if host:
+        try:
+            components["network"] = scanner.scan_network(host)
+        except PermissionError as e:
+            return {"status": "AUTH_REQUIRED", "error": str(e)}
+        except Exception as e:
+            components["network"] = {"status": "ERROR", "error": str(e)}
+    if url:
+        try:
+            components["web"] = scanner.audit_web(url)
+        except PermissionError as e:
+            return {"status": "AUTH_REQUIRED", "error": str(e)}
+        except Exception as e:
+            components["web"] = {"status": "ERROR", "error": str(e)}
+    if code_path:
+        try:
+            components["code"] = scanner.audit_code(code_path)
+        except PermissionError as e:
+            return {"status": "AUTH_REQUIRED", "error": str(e)}
+        except Exception as e:
+            components["code"] = {"status": "ERROR", "error": str(e)}
+        try:
+            components["config"] = scanner.audit_config(config_path)
+        except PermissionError as e:
+            return {"status": "AUTH_REQUIRED", "error": str(e)}
+        except Exception as e:
+            components["config"] = {"status": "ERROR", "error": str(e)}
+
+    report = scanner.get_report()
+    return {"status": "SUCCESS", "result": components, "report": report}
+
+
+def _vuln_get_report(params: dict[str, Any]) -> dict[str, Any]:
+    """Génère le rapport consolidé JSON des vulnérabilités détectées."""
+    from security.vuln_scanner import VulnerabilityScanner
+    scanner = VulnerabilityScanner()
+    try:
+        report = scanner.get_report()
+        return {"status": "SUCCESS", "report": report}
+    except PermissionError as e:
+        return {"status": "AUTH_REQUIRED", "error": str(e)}
+
+
 SKILLS: dict[str, dict[str, Any]] = {
     # Noyau scientifique
     "load_pdb": {"label": "Chargement structure PDB", "fn": _load_pdb, "category": "biology"},
@@ -333,6 +463,14 @@ SKILLS: dict[str, dict[str, Any]] = {
     "redteam_circuit": {"label": "Attaque bornes circuits (Razborov-Rudich/Hastad)", "fn": _redteam_circuit, "category": "redteam"},
     "redteam_tsp": {"label": "Fuzzing TSP (instances adversariales)", "fn": _redteam_tsp, "category": "redteam"},
     "redteam_full": {"label": "Audit complet P vs NP", "fn": _redteam_full, "category": "redteam"},
+    # Scan de vulnérabilités DÉFENSIF (bridé, authentifié) — usage légal
+    "vuln_authenticate": {"label": "Activer le scan de vulnérabilités (mot de passe requis)", "fn": _vuln_authenticate, "category": "vulnscan"},
+    "vuln_scan_network": {"label": "Scan réseau (ports, services, bannières)", "fn": _vuln_scan_network, "category": "vulnscan"},
+    "vuln_audit_web": {"label": "Audit web (headers, TLS, configuration)", "fn": _vuln_audit_web, "category": "vulnscan"},
+    "vuln_audit_code": {"label": "SAST — audit statique de code source", "fn": _vuln_audit_code, "category": "vulnscan"},
+    "vuln_audit_config": {"label": "Audit config (fichiers sensibles, permissions)", "fn": _vuln_audit_config, "category": "vulnscan"},
+    "vuln_scan_full": {"label": "Audit complet consolidé (réseau + web + code + config)", "fn": _vuln_scan_full, "category": "vulnscan"},
+    "vuln_get_report": {"label": "Rapport consolidé JSON des vulnérabilités", "fn": _vuln_get_report, "category": "vulnscan"},
 }
 
 
