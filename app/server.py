@@ -97,6 +97,69 @@ def _make_sync_emitter(loop: asyncio.AbstractEventLoop) -> Any:
     return emit
 
 
+# ── Mode conversationnel (anti écran noir) ───────────────────────────────────
+_CONVO_SYSTEM = (
+    "Tu es Ratiss, instance souveraine JohnKing0 (RATISS V9 Aeon Prime). "
+    "Tu réponds en français, à la première personne, brièvement et naturellement. "
+    "Tu es un agent scientifique autonome (topologie, physique quantique, biologie, ZK-STARK). "
+    "Peu importe le modèle qui génère ce texte, tu restes Ratiss."
+)
+
+# Mots-clés qui indiquent une vraie tâche agentique (pas une conversation)
+_TASK_KEYWORDS = (
+    "betti", "homologie", "topologie", "topology", "quantique", "quantum", "lanczos",
+    "pdb", "protéine", "proteine", "alphafold", "zk", "stark", "preuve", "certifie",
+    "analyse", "calcule", "génère", "genere", "exécute", "execute", "terminal",
+    "python", "navigateur", "browser", "recherche", "rapport", "pdf", "graphique",
+    "diagramme", "pipeline", "tâche", "tache", "lance", "run", "4mzi", "lattice",
+    "t-j", "énergie", "energie", "diagonalisation", "filtration", "persistance",
+)
+
+
+def _is_conversational(task: str) -> bool:
+    """Un message court sans verbe d'action ni mot-clé scientifique = conversation.
+
+    On route vers le chat libre plutôt que vers le pipeline agentique, pour éviter
+    l'écran noir sur « bonjour » et garder une réponse souveraine en toutes circonstances.
+    """
+    t = (task or "").strip()
+    if not t:
+        return False
+    tl = t.lower()
+    # Trop long → probablement une vraie tâche détaillée
+    if len(t) > 280:
+        return False
+    # Contient un mot-clé scientifique ou un verbe d'action → tâche agentique
+    if any(k in tl for k in _TASK_KEYWORDS):
+        return False
+    # Une URL ou un chemin de fichier → tâche
+    if t.startswith(("http://", "https://", "/", "~")) or ".py" in tl or ".pdb" in tl:
+        return False
+    # Sinon : conversation (salutation, question courte, etc.)
+    return True
+
+
+def _local_fallback_reply(task: str) -> str:
+    """Réponse souveraine de dernier recours — jamais d'écran noir."""
+    return (
+        f"Salut, c'est Ratiss. J'ai bien reçu « {task[:160]} ». "
+        "Je tourne en mode souverain local. Dis-moi ce que tu veux explorer : "
+        "analyse topologique (Betti), physique quantique (modèle t-J), biologie "
+        "structurale (PDB), ou je certifie un calcul en ZK-STARK. "
+        "Branche une clé API dans l'onglet Modèles si tu veux le raisonnement complet."
+    )
+
+
+def _chunk_text(text: str, size: int = 4) -> list[str]:
+    """Découpe un texte en petits groupes de mots pour un streaming naturel."""
+    words = text.split()
+    chunks: list[str] = []
+    for i in range(0, len(words), size):
+        chunk = " ".join(words[i:i + size])
+        chunks.append(chunk + (" " if i + size < len(words) else ""))
+    return chunks or [" "]
+
+
 # ── HTTP endpoints ────────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
@@ -657,6 +720,66 @@ async def chat_sse(body: dict = None):
     # Appliquer le modèle si fourni
     if model_id:
         os.environ["RATISS_MODEL_ID"] = model_id
+
+    # ── Mode conversationnel ───────────────────────────────────────
+    # Un message court sans mot-clé scientifique ni verbe d'action est traité
+    # comme une conversation : Ratiss répond en langage naturel (via le LLM
+    # branché s'il y en a un, sinon le fallback souverain local). On évite
+    # ainsi l'écran noir quand on envoie « bonjour » avec une clé OpenRouter.
+    if _is_conversational(task):
+        from orchestrator.llm_router import llm_router as _router
+
+        # Détermine si un vrai LLM cloud est branché pour ce model_id.
+        # Sinon on reste souverain : on répond à partir du DERNIER message
+        # utilisateur uniquement (et non de tout l'historique), pour éviter
+        # que le matching par mots-clés du fallback local ne se déclenche
+        # sur d'anciennes réponses présentes dans l'historique (ex: « betti »).
+        cloud_ready = False
+        if model_id and not model_id.startswith("local/"):
+            try:
+                provider_key = _router.get_provider(model_id)[0]
+                provider = _router.providers.get(provider_key)
+                cloud_ready = bool(provider and provider.available)
+            except Exception:
+                cloud_ready = False
+
+        async def _convo_stream():
+            try:
+                if cloud_ready:
+                    convo_msgs = [
+                        {"role": "system", "content": _CONVO_SYSTEM},
+                        *[
+                            {"role": m.get("role", "user"), "content": m.get("content", "")}
+                            for m in messages[-6:]
+                            if m.get("role") in ("user", "assistant")
+                        ],
+                    ]
+                    reply = await asyncio.to_thread(
+                        _router.complete,
+                        "\n\n".join(f"{m['role']}: {m['content']}" for m in convo_msgs),
+                        model_id,
+                        _CONVO_SYSTEM,
+                    )
+                    # Si le LLM cloud a échoué en interne, _router.complete retombe
+                    # sur _local_complete(prompt) qui inclut le prompt système
+                    # (contenant "topologie"/"quantique") -> déclenche à tort la
+                    # branche Betti. On détecte ces réponses-témoin et on bascule
+                    # sur la salutation souveraine basée sur le dernier message.
+                    if reply and reply.startswith("Les nombres de Betti"):
+                        reply = _local_fallback_reply(task)
+                else:
+                    reply = _local_fallback_reply(task)
+            except Exception:
+                reply = _local_fallback_reply(task)
+            reply = (reply or "").strip() or _local_fallback_reply(task)
+            # Streaming mot par mot pour un rendu naturel
+            for chunk in _chunk_text(reply):
+                yield f"data: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
+                await asyncio.sleep(0.012)
+            yield "data: [DONE]\n\n"
+
+        from starlette.responses import StreamingResponse
+        return StreamingResponse(_convo_stream(), media_type="text/event-stream")
 
     # ── Commandes slash d'auto-amélioration (couche RLM) ──────────────
     # /refine       → analyse la trajectoire courante, propose des leçons

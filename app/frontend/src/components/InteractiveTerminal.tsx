@@ -1,11 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
-import { 
-  Terminal as TerminalIcon, Sparkles, Cpu, ShieldAlert, Play, RefreshCw, Layers, 
-  CheckCircle2, AlertCircle, Globe, ArrowLeft, ArrowRight, Home, Search, Lock, 
-  ExternalLink, FileCode, Terminal as LogIcon, Compass, ListTodo, Circle, HardDrive, Activity, Check
+import {
+  Terminal as TerminalIcon, Sparkles, Cpu, ShieldAlert, Play, RefreshCw, Layers,
+  CheckCircle2, AlertCircle, ListTodo, Circle, HardDrive, Activity, Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { ChromeniumBrowser } from "./ChromeniumBrowser";
 
 interface TerminalLine {
   text: string;
@@ -1089,11 +1087,6 @@ class LanczosTJ:
             autoFocus
           />
         </div>
-      </div>
-
-      {/* RIGHT PANEL: Sovereign Chromenium Browser */}
-      <div className="flex-1 xl:w-1/2 min-h-[620px] flex flex-col">
-        <ChromeniumBrowser initialUrl="https://www.google.com" />
       </div>
     </div>
   );

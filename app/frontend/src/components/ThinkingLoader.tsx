@@ -372,7 +372,11 @@ export const ThinkingLoader: React.FC<ThinkingLoaderProps> = ({ prompt }) => {
         <div className="flex items-center gap-2 overflow-hidden truncate">
           <span className="text-cyan-400 font-bold shrink-0">[STDOUT]</span>
           <span className="truncate text-slate-400">
-            {steps[currentStepIdx]?.logs[Math.floor((stepProgress / 100) * (steps[currentStepIdx]?.logs.length || 1))] || "Traitement sémantique..."}
+            {(() => {
+              const stepLogs = steps[currentStepIdx]?.logs;
+              if (!stepLogs || stepLogs.length === 0) return "Traitement sémantique...";
+              return stepLogs[Math.floor((stepProgress / 100) * stepLogs.length)] || "Traitement sémantique...";
+            })()}
           </span>
         </div>
         <div className="shrink-0 text-cyan-400/80 font-bold text-[8px] tracking-widest pl-3">

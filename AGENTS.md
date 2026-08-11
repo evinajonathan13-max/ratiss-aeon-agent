@@ -225,3 +225,48 @@ python proofs/frl_emergent_test.py  # session AGI émergente FRL (sans clé LLM)
 ## Dépendances
 - Hard : numpy, scipy, psutil, fastapi, uvicorn, websockets
 - Optional (fallback natif) : qiskit, qiskit-ibm-runtime, gudhi, perceval, biopython
+
+## Black-screen bug (fixed 2026-08-09)
+- Root cause: ThinkingLoader.tsx line ~375 accessed steps[currentStepIdx]?.logs.length.
+  The ?. only guarded steps[currentStepIdx], NOT .logs. When /api/agentic/decompose-task
+  returned fallback steps (no logs field), .logs was undefined ->
+  TypeError: Cannot read properties of undefined (reading length) -> React unmounted the
+  whole tree -> blank DOM (black screen). Fired whenever a chat message was SENT
+  (ThinkingLoader mounts during isThinking), independent of OpenRouter keys.
+- Fix: extract const stepLogs = steps[currentStepIdx]?.logs and null/empty-check before use.
+- Defense-in-depth: ErrorBoundary wraps each MessageBubble. Component: app/frontend/src/components/ErrorBoundary.tsx.
+- Backend: server.py chat_sse / _convo_stream (~line 741) now handles non-local model_id
+  (e.g. OpenRouter) with a conversational fallback so the SSE stream emits content.
+- Diagnostic tip: React render errors do NOT fire window.onerror. A temp overlay in main.tsx
+  plus reading page content via the browser tool reveals the stack (React leaves the crash
+  message in the DOM it leaves behind).
+
+## History-contamination bug (fixed 2026-08-09)
+- Symptom: "bonjour" replied with the Betti explanation text instead of a greeting.
+- Root cause: _convo_stream (app/server.py) passed the FULL conversation history
+  (joined as one prompt) to _router.complete. With no API key, _router.complete
+  falls back to _local_complete(prompt) which does KEYWORD matching
+  ("betti","homologie","topologie",...) on the WHOLE prompt. Old assistant
+  responses in the localStorage history contained "Betti" -> the keyword
+  branch fired even when the last user message was just "bonjour".
+- Note: this only reproduced WITH history. An empty-history curl returned the
+  correct greeting; the UI (with old Betti replies persisted) returned Betti.
+- Fix: in _convo_stream, gate on cloud_ready = provider.available for the
+  model_id. If no real cloud key is configured, use _local_fallback_reply(task)
+  based ONLY on the last user message (no history). Only pass full history to
+  _router.complete when a real provider key is actually configured.
+- Lesson: when a fallback uses keyword matching, never feed it contaminated
+  context (history). Gate LLM calls on actual key availability, not model_id prefix.
+
+## Session 2026-08-09 : résolution OpenRouter "rien ne fonctionne"
+
+3 causes corrigées + 1 contamination Betti supplémentaire :
+
+1. Modèle défaut `nvidia/nemotron-3-ultra-550b-a55b:free` → HTTP 404 → fallback local (texte Betti). Changé pour `google/gemma-4-26b-a4b-it:free` (testé OK).
+2. Ajout chaîne `_openrouter_fallbacks` (gemma→nemotron-super→gpt-oss→nemotron-nano) essayés automatiquement avant le fallback local dans `complete()`.
+3. `set_api_key` ne persistait qu'en `os.environ` (runtime) → clé perdue à chaque redémarrage. Ajout `store_key(vault_key_id, ...)` dans `set_api_key` pour persistance durable dans le vault chiffré.
+4. Contamination Betti 2e source : `_CONVO_SYSTEM` contient "topologie"/"quantique" (dans `_TASK_KEYWORDS`). Quand cloud échoue, `_local_complete(prompt)` voit le system prompt → déclenche Betti même pour "bonjour" sans historique. Fix : `_convo_stream` détecte réponses commençant par "Les nombres de Betti" et bascule sur `_local_fallback_reply(task)`.
+
+Code modifié : `orchestrator/llm_router.py` (~339,345,402,530), `app/server.py` (~768).
+
+Note persistance : le runtime OpenHands peut injecter des secrets système au-delà du vault fichier. Vérifier `/proc/<PID>/environ` pour confirmer la source réelle d'une clé.

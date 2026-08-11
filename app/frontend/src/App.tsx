@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { Sidebar } from "./components/Sidebar";
 import { MessageBubble } from "./components/MessageBubble";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ThinkingLoader } from "./components/ThinkingLoader";
 import { VoiceManager } from "./components/VoiceManager";
 import { SovereignLab } from "./components/SovereignLab";
@@ -1550,12 +1551,6 @@ export default function App() {
               <SovereignLab />
             </div>
           </div>
-        ) : showTerminal ? (
-          <div className="flex-1 overflow-y-auto px-2 md:px-4 py-8">
-            <div className="max-w-[98%] mx-auto">
-              <InteractiveTerminal />
-            </div>
-          </div>
         ) : (
           <>
             {/* Drag & drop overlay */}
@@ -1570,7 +1565,7 @@ export default function App() {
             )}
             {/* Flux de Discussion */}
             <div
-              className="flex-1 overflow-y-auto px-2 md:px-4 py-10"
+              className={`flex-1 min-w-0 overflow-y-auto px-2 md:px-4 py-10 ${showTerminal ? 'hidden lg:block' : ''}`}
               onDragEnter={onChatDragEnter}
               onDragLeave={onChatDragLeave}
               onDragOver={onChatDragOver}
@@ -1634,13 +1629,15 @@ export default function App() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       transition={{ type: "spring", stiffness: 400, damping: 30 }}
                     >
-                      <MessageBubble 
-                        message={msg} 
-                        onCopy={handleCopy}
-                        onEdit={handleEdit}
-                        onRetry={handleRetry}
-                        voiceId={selectedVoiceId}
-                      />
+                      <ErrorBoundary label={`msg:${msg.id}`}>
+                        <MessageBubble
+                          message={msg}
+                          onCopy={handleCopy}
+                          onEdit={handleEdit}
+                          onRetry={handleRetry}
+                          voiceId={selectedVoiceId}
+                        />
+                      </ErrorBoundary>
                     </motion.div>
                   ))}
                 </AnimatePresence>
@@ -1896,6 +1893,15 @@ export default function App() {
           </>
         )}
           </div>
+
+          {/* Panneau Terminal VM latéral — à côté du chat sur grands écrans */}
+          {showTerminal && !showSettingsBranch && !showLab && (
+            <aside className="w-full lg:w-[44%] xl:w-[42%] shrink-0 border-l border-white/5 bg-black/40 flex flex-col overflow-hidden">
+              <div className="h-full overflow-y-auto p-3 lg:p-4 custom-scrollbar">
+                <InteractiveTerminal />
+              </div>
+            </aside>
+          )}
         </div>
       </main>
 

@@ -336,8 +336,18 @@ class LLMRouter:
         "anthropic": "claude-3-5-sonnet-20241022",
         "google": "gemini-2.0-flash",
         "openai": "gpt-4o",
-        "openrouter": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "openrouter": "google/gemma-4-26b-a4b-it:free",
     }
+
+    # Modèles OpenRouter de secours éprouvés (essayés dans l'ordre si le modèle
+    # demandé échoue en 404/502/etc.). On évite ainsi le fallback local quand un
+    # seul modèle gratuit devient indisponible pour la clé de l'utilisateur.
+    _openrouter_fallbacks = [
+        "google/gemma-4-26b-a4b-it:free",
+        "nvidia/nemotron-3-super-120b-a12b:free",
+        "openai/gpt-oss-20b:free",
+        "nvidia/nemotron-nano-9b-v2:free",
+    ]
 
     def __init__(self):
         self.providers: dict[str, Any] = {
@@ -386,17 +396,29 @@ class LLMRouter:
             return _local_complete(prompt, sovereign)
 
         provider_key, provider, model_name = self.get_provider(model_id)
-        try:
-            return provider.complete(
-                [{"role": "user", "content": prompt}],
-                system=sovereign,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                model=model_name,
-            )
-        except Exception as e:
-            logger.warning(f"[LLM] Échec {provider_key}/{model_name} ({e}), fallback local.")
-            return _local_complete(prompt, sovereign)
+        # Liste des modèles à essayer : le demandé d'abord, puis des secours pour OpenRouter.
+        if provider_key == "openrouter":
+            try_models = [model_name] + [
+                m for m in self._openrouter_fallbacks if m != model_name
+            ]
+        else:
+            try_models = [model_name]
+
+        last_err = None
+        for m in try_models:
+            try:
+                return provider.complete(
+                    [{"role": "user", "content": prompt}],
+                    system=sovereign,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    model=m,
+                )
+            except Exception as e:
+                last_err = e
+                logger.warning(f"[LLM] Échec {provider_key}/{m} ({e}), essai suivant.")
+        logger.warning(f"[LLM] Tous les modèles {provider_key} ont échoué, fallback local.")
+        return _local_complete(prompt, sovereign)
 
     def plan(self, task: str, model_id: str = "") -> dict[str, Any]:
         """Planifie une tâche — route vers le fournisseur approprié.
@@ -501,6 +523,16 @@ def set_api_key(provider: str, api_key: str) -> bool:
     if not env_var:
         return False
     os.environ[env_var] = api_key.strip()
+    # Persister la clé dans le vault chiffré pour qu'elle survive aux redémarrages
+    vault_key_id = "openrouter" if provider in ("openrouter", "nemotron") else provider
+    if provider == "gemini":
+        vault_key_id = "google"
+    try:
+        from security.api_vault import store_key
+        store_key(vault_key_id, api_key.strip(), label=provider)
+    except Exception:
+        # La persistance est best-effort : la clé reste active pour la session courante.
+        pass
     # Réinitialiser le fournisseur correspondant
     router = llm_router
     if provider in ("anthropic",):
