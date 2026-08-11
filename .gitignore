@@ -64,3 +64,9 @@ config/api_vault.key
 
 # Mémoire personnelle persistante de Ratiss (données utilisateur runtime)
 config/sovereign_memory.json
+
+# Structural Data Vault (FRL) — cache régénérable depuis les trajectoires
+# (le graphe est stateless : rebuild_from_trajectories() le reconstruit à l'identique)
+data/structural_vault.json
+proofs/frl_emergent_run/structural_vault.json
+proofs/frl_emergent_run/structural_vault_export.json

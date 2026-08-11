@@ -1,0 +1,158 @@
+{
+  "ratio_before": {
+    "total": 6,
+    "topo_recall": 0,
+    "heuristic": 6,
+    "llm": 0,
+    "failed": 0,
+    "llm_independence_pct": 100.0,
+    "topo_recall_pct": 0.0
+  },
+  "ratio_after": {
+    "total": 6,
+    "topo_recall": 6,
+    "heuristic": 0,
+    "llm": 0,
+    "failed": 0,
+    "llm_independence_pct": 100.0,
+    "topo_recall_pct": 100.0
+  },
+  "emergence": true,
+  "learning_log": [
+    {
+      "task": "Analyse topologique de la protéine p53-MDM2 (PDB 4MZI) : charger la structure et",
+      "frl_source": "heuristic",
+      "steps": 3,
+      "success": 2,
+      "ingest": "INGESTED",
+      "betti_after": [
+        1,
+        2
+      ]
+    },
+    {
+      "task": "Calculer l'homologie persistante (Betti) du paysage synthétique",
+      "frl_source": "topo_recall",
+      "steps": 4,
+      "success": 3,
+      "ingest": "INGESTED",
+      "betti_after": [
+        1,
+        4
+      ]
+    },
+    {
+      "task": "Diagonalisation exacte Lanczos du modèle t-J (quantum) sur grille 4x4",
+      "frl_source": "heuristic",
+      "steps": 1,
+      "success": 1,
+      "ingest": "INGESTED",
+      "betti_after": [
+        2,
+        4
+      ]
+    },
+    {
+      "task": "Charger la structure PDB 4MZI pour analyse structurale",
+      "frl_source": "topo_recall",
+      "steps": 3,
+      "success": 3,
+      "ingest": "INGESTED",
+      "betti_after": [
+        2,
+        7
+      ]
+    },
+    {
+      "task": "Certification ZK-STARK de la topologie (nombres de Betti)",
+      "frl_source": "topo_recall",
+      "steps": 4,
+      "success": 3,
+      "ingest": "INGESTED",
+      "betti_after": [
+        2,
+        7
+      ]
+    },
+    {
+      "task": "Analyse complète : charger PDB 4MZI, topologie Betti, puis certification ZK",
+      "frl_source": "topo_recall",
+      "steps": 3,
+      "success": 3,
+      "ingest": "INGESTED",
+      "betti_after": [
+        2,
+        7
+      ]
+    }
+  ],
+  "vault_state": {
+    "version": 6,
+    "nodes": 11,
+    "edges": 16,
+    "ingested": 6,
+    "rejected": 0,
+    "betti": [
+      2,
+      7
+    ],
+    "updated_at": "2026-08-11T01:54:31Z"
+  },
+  "recall_plan": {
+    "planner": "topo_recall",
+    "planner_detail": "rappel structurel (dist=2.8716, β=[1, 2])",
+    "goal": "Analyse topologique de la protéine p53 4MZI",
+    "domain": "structural_biology",
+    "steps": [
+      {
+        "id": 1,
+        "action": "load_pdb",
+        "params": {
+          "pdb_id": "4MZI"
+        },
+        "description": "[FRL rappel] load_pdb (poids=5.0)"
+      },
+      {
+        "id": 2,
+        "action": "topology",
+        "params": {
+          "n_points": 500,
+          "max_dimension": 2,
+          "max_edge": 2.0
+        },
+        "description": "[FRL rappel] topology (poids=5.0)"
+      },
+      {
+        "id": 3,
+        "action": "zk_proof",
+        "params": {},
+        "description": "[FRL rappel] Certification ZK-STARK (chaîne de confiance)"
+      }
+    ],
+    "expected_artifacts": [
+      "pdb_result.json",
+      "betti_diagram.json",
+      "zk_receipt.b64"
+    ],
+    "concepts": [
+      "entity:4mzi",
+      "action:load_pdb",
+      "domain:structural_biology"
+    ],
+    "recall": {
+      "distance": 2.8716,
+      "beta": [
+        1,
+        2
+      ],
+      "matched_concepts": [
+        "action:load_pdb",
+        "action:topology",
+        "domain:structural_biology",
+        "domain:topology",
+        "entity:4mzi"
+      ],
+      "signature": "86030d07588992e4"
+    }
+  }
+}

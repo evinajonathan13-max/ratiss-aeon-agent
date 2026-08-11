@@ -95,12 +95,64 @@ Boucle : Exécution → Validation ZK → Analyse trajectoire → Leçons → Va
 - **Standard de sécurité** : `sovereign` (fermé, défaut) ou `cloud_opt_in` (ouvert, explicite). Choix justifié : la souveraineté est fondatrice → fermé par défaut, cloud opt-in sur décision utilisateur.
 - **Endpoints** : `GET /api/identity`, `GET /api/profile`, `POST /api/profile/onboard`, `POST /api/profile/security`, `GET /api/memory/state`, `POST /api/memory/remember`, `DELETE /api/memory/{id}`, `GET /assets/logo.{svg,png}`.
 
+## Couche First Reasoning Learn (FRL) — cerveau topologique sans LLM (v9.6)
+
+Le paradigme **First Reasoning Learn** : RATISS apprend à raisonner par la
+**topologie de ses propres expériences**, de façon déterministe et CPU-only, pour
+que **le LLM connecté devienne un recours, pas le défaut**. Le cerveau, c'est le
+graphe conceptuel (Structural Data Vault), pas le modèle.
+
+Trois briques (toutes testées, sans clé LLM) :
+
+- `kernel/core/structural_vault.py` — **Structural Data Vault (SDV)** : graphe
+  conceptuel a-sémantique. Nœuds = concepts (actions `load_pdb`, domaines
+  `quantum`, entités `4MZI`, faits `betti_[1,1,0]`) ; arêtes = relations typées
+  (`precede`, `depends_on`, `validates`, `causes`) pondérées par **persistance
+  topologique** (pas des probabilités).
+  - **Stateless** : reconstruisable à l'identique depuis les trajectoires
+    archivées (`rebuild_from_trajectories()`). Persistance = cache.
+  - **Borné** (max 5000 nœuds / 20000 arêtes) + **évection par faible poids de
+    persistance** = la filtration, principe du Topology Compressor appliqué à la
+    mémoire. On ne garde que les caractéristiques topologiques invariantes.
+  - **Auto-stabilisant ZK** : chaque ingestion doit préserver la cohérence de
+    Betti globale du vault (`dβ1/dt = 0`, max 12 composantes connexes), sinon
+    rejet (`betti_coherence_broken`) — le vault ne devient jamais un blob
+    statistique bruité.
+  - **Ingestion** : `ingest_trajectory(summary, plan)` alimenté par les
+    trajectoires déjà capturées par `auto_improve`. Renforcement OK=+1.0
+    (ZK-valide), échec=+0.2. `persistence_signature()` + `nearest_subgraph()`
+    pour le rappel structurel (matching par empreinte de persistance, O(M log M),
+    pas isomorphisme exact NP-complet).
+
+- `orchestrator/topo_planner.py` — **Planificateur topologique FRL** :
+  Tâche → `project_task()` (projection en concepts) → sous-graphe requête →
+  `nearest_subgraph()` (rappel structurel) → plan par **ordre topologique**
+  (tri de Kahn sur les arêtes `precede`) + complétude ZK (chaîne de confiance).
+  - **Chaîne de fallback INVERSÉE** : `plan_topological()` (rappel, zéro LLM) →
+    heuristique locale (`_local_plan`) → LLM (dernier recours si
+    `allow_llm=True`). Le LLM passe en dernier — c'est l'objectif « un vrai
+    cerveau qui n'a pas toujours besoin du LLM » rendu littéral.
+  - `independence_ratio(tasks)` : mesure le **ratio d'indépendance LLM** (%
+    planifié sans LLM) — métrique d'émergence FRL, croissante avec le vault.
+
+- `proofs/frl_emergent_test.py` — **Session AGI émergente** : lance un lot de
+  tâches **sans aucune clé LLM**, exécute via le noyau, ingère les trajectoires,
+  mesure le ratio AVANT/APRÈS, ZK-certifie, génère un rapport PDF. Artefacts dans
+  `proofs/frl_emergent_run/`. **Résultat mesuré** : rappel structurel 0% → 100%
+  après apprentissage (émergence démontrée).
+
+Intégration : le `topo_planner` est un planificateur au même format que
+`nemotron.plan` (planner, goal, domain, steps, expected_artifacts) + champ
+`frl_source` (`topo_recall` | `topo_cold` | `heuristic` | `llm`). Branche dans la
+chaîne de planification via `topo_planner.plan(task)`.
+
 ## Commandes utiles
 ```bash
 pip install -r requirements.txt
 python -m app.server              # UI: http://localhost:7860
 python scripts/align_agent.py --check
 python -m pytest tests/           # tests pipeline
+python proofs/frl_emergent_test.py  # session AGI émergente FRL (sans clé LLM)
 ```
 
 ## API REST
